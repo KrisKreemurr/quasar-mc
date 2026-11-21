@@ -1,0 +1,99 @@
+// Root build file for Quasar MC.
+// It holds no mod itself. It only declares the NeoForge plugin version and the
+// setup that every mod folder (core/, lighting/, ...) shares, so each mod's own
+// build.gradle stays tiny.
+
+plugins {
+    id 'net.neoforged.moddev' version '2.0.148' apply false
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+subprojects { sub ->
+    // Runs for every subproject that applies the NeoForge plugin.
+    sub.pluginManager.withPlugin('net.neoforged.moddev') {
+
+        sub.version = sub.mod_version
+        sub.group = sub.mod_group_id
+        sub.base.archivesName = sub.mod_id
+
+        // Minecraft 26.x requires Java 25.
+        sub.java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+        sub.sourceSets.main.resources {
+            srcDir('src/generated/resources')
+            exclude('**/*.bbmodel')
+            exclude('src/generated/**/.cache')
+        }
+
+        sub.neoForge.version = sub.neo_version
+
+        sub.neoForge {
+            runs {
+                client {
+                    client()
+                }
+                server {
+                    server()
+                    programArgument '--nogui'
+                }
+                configureEach {
+                    // All mods share one run/ folder at the repo root (one set of worlds/options).
+                    gameDirectory = sub.rootProject.file('run')
+                    systemProperty 'forge.logging.markers', 'REGISTRIES'
+                    logLevel = org.slf4j.event.Level.DEBUG
+                }
+            }
+
+            mods {
+                "${sub.mod_id}" {
+                    sourceSet(sub.sourceSets.main)
+                }
+            }
+        }
+
+        // Fills in ${...} placeholders in src/main/templates (e.g. neoforge.mods.toml).
+        def replaceProperties = [
+                minecraft_version      : sub.minecraft_version,
+                minecraft_version_range: sub.minecraft_version_range,
+                neo_version            : sub.neo_version,
+                mod_id                 : sub.mod_id,
+                mod_name               : sub.mod_name,
+                mod_license            : sub.mod_license,
+                mod_version            : sub.mod_version,
+                mod_authors            : sub.mod_authors,
+                mod_description        : sub.mod_description,
+        ]
+        def generateModMetadata = sub.tasks.register('generateModMetadata', ProcessResources) {
+            inputs.properties replaceProperties
+            expand replaceProperties
+            from 'src/main/templates'
+            into 'build/generated/sources/modMetadata'
+        }
+        sub.sourceSets.main.resources.srcDir generateModMetadata
+        sub.neoForge.ideSyncTask generateModMetadata
+
+        // After every build, copy this mod's jar into the MultiMC test instance
+        // (path set by quasarmc_test_mods_dir in gradle.properties).
+        def installJar = sub.tasks.register('installToTestInstance', Copy) {
+            def target = sub.providers.gradleProperty('quasarmc_test_mods_dir')
+            onlyIf { target.isPresent() }
+            from sub.tasks.named('jar')
+            into target.orElse(sub.layout.buildDirectory.dir('no-test-dir').get().asFile.path)
+        }
+        sub.tasks.named('build') { finalizedBy installJar }
+
+        sub.tasks.withType(JavaCompile).configureEach {
+            options.encoding = 'UTF-8'
+        }
+
+        sub.idea {
+            module {
+                downloadSources = true
+                downloadJavadoc = true
+            }
+        }
+    }
+}

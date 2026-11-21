@@ -1,0 +1,10 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev'
+}
+
+// Shared setup comes from the root build.gradle.
+
+dependencies {
+}

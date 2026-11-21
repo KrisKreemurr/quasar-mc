@@ -1,0 +1,16 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'quasar-mc'
+
+// Each folder listed here is its own mod and builds its own .jar.
+// To add a new mod: create the folder (copy lighting/ as a template) and add it here.
+include 'core'
+include 'lighting'
