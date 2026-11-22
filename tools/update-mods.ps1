@@ -19,6 +19,23 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Choose GitHub.com, HTTPS, Login with a web browser, then enter the code at github.com/login/device." -ForegroundColor Red
     exit 1
 }
+# Keep this script itself up to date: fetch the newest copy from GitHub and rerun it if it changed.
+if (-not $env:QUASAR_UPDATER_FRESH) {
+    $self = $MyInvocation.MyCommand.Path
+    $latest = gh api repos/KrisKreemurr/quasar-mc/contents/tools/update-mods.ps1 -H "Accept: application/vnd.github.raw" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $latest) {
+        $text = ($latest -join "`r`n")
+        $current = Get-Content $self -Raw
+        if ($text.Trim() -ne $current.Trim()) {
+            Write-Host "Updating the updater itself..." -ForegroundColor Cyan
+            Set-Content -Path $self -Value $text -Encoding UTF8
+            $env:QUASAR_UPDATER_FRESH = "1"
+            & powershell -NoProfile -ExecutionPolicy Bypass -File $self -Mods $Mods
+            exit $LASTEXITCODE
+        }
+    }
+}
+
 if (-not (Test-Path $Mods)) {
     Write-Host "Mods folder not found: $Mods" -ForegroundColor Red
     exit 1
