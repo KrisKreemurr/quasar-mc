@@ -34,7 +34,10 @@ $sources = @(
        Remove = @("figura*.jar") },
     @{ Repo = "KrisKreemurr/quasar-horizons";   Branch = "quasar/26.3"; Artifact = "quasar-horizons-26.3";
        Take = @("QuasarHorizons-*-fabric-neoforge.jar", "DistantHorizons-*-fabric-neoforge.jar");
-       Remove = @("QuasarHorizons*.jar", "DistantHorizons*.jar") }
+       Remove = @("QuasarHorizons*.jar", "DistantHorizons*.jar") },
+    @{ Repo = "KrisKreemurr/quasar-creativecore"; Branch = "quasar/26.3"; Artifact = "quasar-creativecore-26.3";
+       Take = @("CreativeCore_NEOFORGE_v*.jar");
+       Remove = @("CreativeCore*.jar", "creativecore*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
