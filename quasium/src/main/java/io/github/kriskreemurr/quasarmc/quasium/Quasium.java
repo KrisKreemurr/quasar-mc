@@ -17,6 +17,18 @@ public class Quasium {
 
     public Quasium(IEventBus modEventBus, ModContainer modContainer) {
         QuasiumConfig.load();
-        LOGGER.info("Quasium loaded (face culling: {})", QuasiumConfig.faceCulling ? "on" : "off");
+        modEventBus.addListener(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent.class, event -> event.enqueueWork(Quasium::registerDebugEntry));
+        LOGGER.info("Quasium loaded (face culling: {}, entity LOD: {})", QuasiumConfig.faceCulling ? "on" : "off", QuasiumConfig.entityLod ? "on" : "off");
     }
+
+    private static void registerDebugEntry() {
+        try {
+            io.github.kriskreemurr.quasarmc.quasium.mixin.DebugScreenEntriesAccessor.quasium$register(
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath(MODID, "quasium"),
+                    new io.github.kriskreemurr.quasarmc.quasium.entity.QuasiumDebugEntry());
+        } catch (Throwable t) {
+            LOGGER.warn("Could not add the Quasium F3 lines", t);
+        }
+    }
+
 }

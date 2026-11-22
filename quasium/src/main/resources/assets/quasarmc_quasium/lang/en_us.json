@@ -5,6 +5,8 @@
   "quasarmc_quasium.options.page.quasium": "Quasium",
   "quasarmc_quasium.options.face_culling": "Face Culling",
   "quasarmc_quasium.options.face_culling.tooltip": "Skips drawing the sides of blocks that point away from you. Never hides anything visible. Turn it off to compare FPS.",
+  "quasarmc_quasium.options.entity_lod": "Entity LOD",
+  "quasarmc_quasium.options.entity_lod.tooltip": "Far players and mobs update their animation fewer times per second (60/30/15). Players: full speed within 64 blocks. Mobs reach each step at half the distance.",
   "quasarmc_quasium.options.lod_panorama": "LOD Panorama",
   "quasarmc_quasium.options.lod_panorama.tooltip": "Distant Horizons draws far terrain into a 360° picture around you that only refreshes as you move, instead of redrawing it every frame. Needs Quasar Horizons.",
   "quasarmc_quasium.options.panorama_start": "Panorama Start",

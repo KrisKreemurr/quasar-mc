@@ -5,6 +5,10 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "CompiledSectionMeshMixin",
+    "DebugScreenEntriesAccessor",
+    "EntityLodHolderMixin",
+    "EntityRenderDispatcherMixin",
+    "LevelExtractorMixin",
     "LevelRendererMixin",
     "SectionCompilerMixin",
     "SectionCompilerResultsMixin",

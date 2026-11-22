@@ -167,8 +167,17 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                 .width(150)
                 .build();
 
-        this.list.addSmall(faceCulling, panorama);
-        this.list.addBig(panoramaStart);
+        Button entityLod = Button.builder(quasium$entityLodLabel(), button -> {
+                    QuasiumConfig.entityLod = !QuasiumConfig.entityLod;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$entityLodLabel());
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.entity_lod.tooltip")))
+                .width(150)
+                .build();
+
+        this.list.addSmall(faceCulling, entityLod);
+        this.list.addSmall(panorama, panoramaStart);
     }
 
     @Unique
@@ -183,6 +192,13 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.panorama_start"),
                 Component.translatable("quasarmc_quasium.options.blocks", QuasiumConfig.panoramaStart));
+    }
+
+    @Unique
+    private static Component quasium$entityLodLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.entity_lod"),
+                QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
     }
 
     @Unique
