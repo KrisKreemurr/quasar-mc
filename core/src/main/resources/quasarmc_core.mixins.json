@@ -4,7 +4,8 @@
   "package": "io.github.kriskreemurr.quasarmc.core.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ForceVulkanMixin"
+    "ForceVulkanMixin",
+    "TracySwitchMixin"
   ],
   "injectors": {
     "defaultRequire": 1
