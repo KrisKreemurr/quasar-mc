@@ -9,22 +9,128 @@ import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.client.OptionInstance;
+import net.minecraft.client.gui.components.OptionsList;
+import net.minecraft.client.gui.components.StringWidget;
+import net.minecraft.client.gui.layouts.LinearLayout;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Adds a "Quasium" section to the bottom of Video Settings. */
+/**
+ * Quasium: turns Video Settings into a Sodium-style screen with pages in a sidebar
+ * (General / Quality / Quasium). Vanilla still builds every option; we only choose which
+ * sections land on the current page, so vanilla's own logic (fullscreen modes, graphics
+ * warnings, restart notice) keeps working.
+ */
 @Mixin(VideoSettingsScreen.class)
 public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
+    @Unique private static final int PAGE_GENERAL = 0, PAGE_QUALITY = 1, PAGE_QUASIUM = 2;
+    @Unique private static final String[] PAGE_KEYS = {
+            "quasarmc_quasium.options.page.general",
+            "quasarmc_quasium.options.page.quality",
+            "quasarmc_quasium.options.page.quasium"};
+    /** Page shown; kept while the game runs so reopening lands where you left off. */
+    @Unique private static int quasium$page = PAGE_GENERAL;
+    /** Vanilla section being built in addOptions: 1 display, 2 quality, 3 preferences. */
+    @Unique private int quasium$section;
+    @Unique private final List<Button> quasium$tabs = new ArrayList<>();
+
+    @Shadow @Final private LinearLayout header;
+    @Shadow private StringWidget restartWarning;
 
     protected VideoSettingsScreenMixin(Screen lastScreen, Options options, Component title) {
         super(lastScreen, options, title);
     }
 
+    @Unique
+    private boolean quasium$sectionShown() {
+        return switch (quasium$section) {
+            case 1, 3 -> quasium$page == PAGE_GENERAL;
+            case 2 -> quasium$page == PAGE_QUALITY;
+            default -> true;
+        };
+    }
+
+    @Inject(method = "addOptions", at = @At("HEAD"))
+    private void quasium$startOptions(CallbackInfo ci) {
+        quasium$section = 0;
+    }
+
+    @Redirect(method = "addOptions", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/OptionsList;addHeader(Lnet/minecraft/network/chat/Component;)V"))
+    private void quasium$header(OptionsList list, Component text) {
+        quasium$section++;
+        if (quasium$sectionShown()) list.addHeader(text);
+    }
+
+    @Redirect(method = "addOptions", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/OptionsList;addBig(Lnet/minecraft/client/OptionInstance;)V"))
+    private void quasium$big(OptionsList list, OptionInstance<?> option) {
+        if (quasium$sectionShown()) list.addBig(option);
+    }
+
+    @Redirect(method = "addOptions", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/OptionsList;addSmall([Lnet/minecraft/client/OptionInstance;)V"))
+    private void quasium$small(OptionsList list, OptionInstance<?>[] options) {
+        if (quasium$sectionShown()) list.addSmall(options);
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        quasium$tabs.clear();
+        for (int i = 0; i < PAGE_KEYS.length; i++) {
+            final int page = i;
+            Component name = Component.translatable(PAGE_KEYS[i]);
+            Button tab = Button.builder(page == quasium$page ? Component.literal("» ").append(name).append(" «") : name,
+                    b -> quasium$switchPage(page)).width(100).build();
+            quasium$tabs.add(addRenderableWidget(tab));
+        }
+        quasium$layoutSidebar();
+    }
+
+    @Inject(method = "repositionElements", at = @At("TAIL"))
+    private void quasium$reposition(CallbackInfo ci) {
+        quasium$layoutSidebar();
+    }
+
+    /** Sidebar on the left, option list in the space to its right. */
+    @Unique
+    private void quasium$layoutSidebar() {
+        int sideWidth = Math.max(70, Math.min(110, this.width - 330));
+        int top = this.layout.getHeaderHeight() + 6;
+        for (int i = 0; i < quasium$tabs.size(); i++) {
+            Button tab = quasium$tabs.get(i);
+            tab.setWidth(sideWidth - 10);
+            tab.setX(6);
+            tab.setY(top + i * 24);
+        }
+        if (this.list != null && !quasium$tabs.isEmpty()) {
+            this.list.updateSizeAndPosition(this.width - sideWidth, this.layout.getContentHeight(), sideWidth, this.layout.getHeaderHeight());
+        }
+    }
+
+    @Unique
+    private void quasium$switchPage(int page) {
+        if (page == quasium$page) return;
+        if (this.list != null) this.list.applyUnsavedChanges();
+        quasium$page = page;
+        // same reset vanilla does before rebuilding this screen
+        this.layout.removeChildren();
+        this.header.removeChildren();
+        this.restartWarning = null;
+        this.rebuildWidgets();
+    }
+
     @Inject(method = "addOptions", at = @At("TAIL"))
     private void quasium$addOptions(CallbackInfo ci) {
+        if (quasium$page != PAGE_QUASIUM) return;
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.header"));
 
         Button faceCulling = Button.builder(quasium$faceCullingLabel(), button -> {

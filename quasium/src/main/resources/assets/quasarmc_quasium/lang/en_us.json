@@ -1,5 +1,8 @@
 {
   "quasarmc_quasium.options.header": "Quasium",
+  "quasarmc_quasium.options.page.general": "General",
+  "quasarmc_quasium.options.page.quality": "Quality",
+  "quasarmc_quasium.options.page.quasium": "Quasium",
   "quasarmc_quasium.options.face_culling": "Face Culling",
   "quasarmc_quasium.options.face_culling.tooltip": "Skips drawing the sides of blocks that point away from you. Never hides anything visible. Turn it off to compare FPS.",
   "quasarmc_quasium.options.lod_panorama": "LOD Panorama",
