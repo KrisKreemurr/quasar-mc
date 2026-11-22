@@ -12,6 +12,13 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Host "GitHub CLI not found. Install it with:  winget install GitHub.cli   then run:  gh auth login" -ForegroundColor Red
     exit 1
 }
+gh auth status *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "GitHub CLI is installed but not signed in." -ForegroundColor Red
+    Write-Host "Open a NEW Command Prompt (not as administrator) and run:  gh auth login" -ForegroundColor Red
+    Write-Host "Choose GitHub.com, HTTPS, Login with a web browser, then enter the code at github.com/login/device." -ForegroundColor Red
+    exit 1
+}
 if (-not (Test-Path $Mods)) {
     Write-Host "Mods folder not found: $Mods" -ForegroundColor Red
     exit 1
