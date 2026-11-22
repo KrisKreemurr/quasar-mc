@@ -54,7 +54,11 @@ $sources = @(
        Remove = @("QuasarHorizons*.jar", "DistantHorizons*.jar") },
     @{ Repo = "KrisKreemurr/quasar-creativecore"; Branch = "quasar/26.3"; Artifact = "quasar-creativecore-26.3";
        Take = @("CreativeCore_NEOFORGE_v*.jar");
-       Remove = @("CreativeCore*.jar", "creativecore*.jar") }
+       Remove = @("CreativeCore*.jar", "creativecore*.jar") },
+    # LittleTiles 26.3 port: first-boot build (tiles load/save/work but are not drawn yet - render rewrite pending)
+    @{ Repo = "KrisKreemurr/quasar-littletiles"; Branch = "quasar/26.3"; Artifact = "quasar-littletiles-26.3";
+       Take = @("LittleTiles_BETA_v*.jar");
+       Remove = @("LittleTiles*.jar", "littletiles*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
