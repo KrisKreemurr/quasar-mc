@@ -14,3 +14,4 @@ rootProject.name = 'quasar-mc'
 // To add a new mod: create the folder (copy lighting/ as a template) and add it here.
 include 'core'
 include 'lighting'
+include 'quasium'

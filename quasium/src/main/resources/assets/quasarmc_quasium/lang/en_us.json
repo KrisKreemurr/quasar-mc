@@ -1,0 +1,5 @@
+{
+  "quasarmc_quasium.options.header": "Quasium",
+  "quasarmc_quasium.options.face_culling": "Face Culling",
+  "quasarmc_quasium.options.face_culling.tooltip": "Skips drawing the sides of blocks that point away from you. Never hides anything visible. Turn it off to compare FPS."
+}
