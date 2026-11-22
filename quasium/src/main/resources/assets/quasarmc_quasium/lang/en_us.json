@@ -1,5 +1,10 @@
 {
   "quasarmc_quasium.options.header": "Quasium",
   "quasarmc_quasium.options.face_culling": "Face Culling",
-  "quasarmc_quasium.options.face_culling.tooltip": "Skips drawing the sides of blocks that point away from you. Never hides anything visible. Turn it off to compare FPS."
+  "quasarmc_quasium.options.face_culling.tooltip": "Skips drawing the sides of blocks that point away from you. Never hides anything visible. Turn it off to compare FPS.",
+  "quasarmc_quasium.options.lod_panorama": "LOD Panorama",
+  "quasarmc_quasium.options.lod_panorama.tooltip": "Distant Horizons draws far terrain into a 360° picture around you that only refreshes as you move, instead of redrawing it every frame. Needs Quasar Horizons.",
+  "quasarmc_quasium.options.panorama_start": "Panorama Start",
+  "quasarmc_quasium.options.panorama_start.tooltip": "How far away the panorama takes over from live LOD drawing. Closer = faster, farther = more accurate when moving.",
+  "quasarmc_quasium.options.blocks": "%s blocks"
 }

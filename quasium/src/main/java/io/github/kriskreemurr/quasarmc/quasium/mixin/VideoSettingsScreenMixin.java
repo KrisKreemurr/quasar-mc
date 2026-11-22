@@ -35,7 +35,48 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                 .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.face_culling.tooltip")))
                 .width(150)
                 .build();
-        this.list.addBig(faceCulling);
+
+        Button panorama = Button.builder(quasium$panoramaLabel(), button -> {
+                    QuasiumConfig.lodPanorama = !QuasiumConfig.lodPanorama;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$panoramaLabel());
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.lod_panorama.tooltip")))
+                .width(150)
+                .build();
+        Button panoramaStart = Button.builder(quasium$panoramaStartLabel(), button -> {
+                    int[] starts = QuasiumConfig.PANORAMA_STARTS;
+                    int next = starts[0];
+                    for (int i = 0; i < starts.length; i++) {
+                        if (starts[i] == QuasiumConfig.panoramaStart) {
+                            next = starts[(i + 1) % starts.length];
+                            break;
+                        }
+                    }
+                    QuasiumConfig.panoramaStart = next;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$panoramaStartLabel());
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.panorama_start.tooltip")))
+                .width(150)
+                .build();
+
+        this.list.addSmall(faceCulling, panorama);
+        this.list.addBig(panoramaStart);
+    }
+
+    @Unique
+    private static Component quasium$panoramaLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.lod_panorama"),
+                QuasiumConfig.lodPanorama ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$panoramaStartLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.panorama_start"),
+                Component.translatable("quasarmc_quasium.options.blocks", QuasiumConfig.panoramaStart));
     }
 
     @Unique
