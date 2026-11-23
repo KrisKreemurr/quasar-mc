@@ -11,5 +11,13 @@
   "quasarmc_quasium.options.lod_panorama.tooltip": "Distant Horizons draws far terrain into a 360° picture around you that only refreshes as you move, instead of redrawing it every frame. Needs Quasar Horizons.",
   "quasarmc_quasium.options.panorama_start": "Panorama Start",
   "quasarmc_quasium.options.panorama_start.tooltip": "How far away the panorama takes over from live LOD drawing. Closer = faster, farther = more accurate when moving.",
-  "quasarmc_quasium.options.blocks": "%s blocks"
+  "quasarmc_quasium.options.blocks": "%s blocks",
+  "quasarmc_quasium.options.color_header": "Colour",
+  "quasarmc_quasium.options.saturation": "Saturation",
+  "quasarmc_quasium.options.saturation.tooltip": "How colourful the image is. 0% = black and white, 100% = unchanged, 200% = twice as vivid.",
+  "quasarmc_quasium.options.contrast": "Contrast",
+  "quasarmc_quasium.options.contrast.tooltip": "Difference between dark and bright. 100% = unchanged.",
+  "quasarmc_quasium.options.whiteness": "Whiteness",
+  "quasarmc_quasium.options.whiteness.tooltip": "How easily bright colours turn white. 50% = unchanged, higher = reaches white sooner (brighter, more washed highlights), lower = holds colour in highlights. Blacks and full white stay put.",
+  "quasarmc_quasium.options.color_reset": "Reset Colour"
 }

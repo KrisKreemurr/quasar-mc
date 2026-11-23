@@ -22,6 +22,12 @@ public final class QuasiumConfig {
     public static volatile int panoramaStart = 512;
     public static final int[] PANORAMA_STARTS = {256, 512, 768, 1024, 1536, 2048};
 
+    /** Colour grading (percent). Saturation 0..200 (100 = unchanged), contrast 50..150 (100 = unchanged),
+     * whiteness 0..100 (50 = unchanged; higher = bright colours reach white sooner). */
+    public static volatile int saturation = 100;
+    public static volatile int contrast = 100;
+    public static volatile int whiteness = 50;
+
     private QuasiumConfig() {}
 
     private static Path file() {
@@ -48,6 +54,9 @@ public final class QuasiumConfig {
             entityLod = Boolean.parseBoolean(p.getProperty("entityLod", "true"));
             lodPanorama = Boolean.parseBoolean(p.getProperty("lodPanorama", "false"));
             panoramaStart = Integer.parseInt(p.getProperty("panoramaStart", "512"));
+            saturation = clamp(Integer.parseInt(p.getProperty("saturation", "100")), 0, 200);
+            contrast = clamp(Integer.parseInt(p.getProperty("contrast", "100")), 50, 150);
+            whiteness = clamp(Integer.parseInt(p.getProperty("whiteness", "50")), 0, 100);
         } catch (Exception e) {
             Quasium.LOGGER.warn("Could not read Quasium config, using defaults", e);
         }
@@ -61,10 +70,17 @@ public final class QuasiumConfig {
         p.setProperty("entityLod", Boolean.toString(entityLod));
         p.setProperty("lodPanorama", Boolean.toString(lodPanorama));
         p.setProperty("panoramaStart", Integer.toString(panoramaStart));
+        p.setProperty("saturation", Integer.toString(saturation));
+        p.setProperty("contrast", Integer.toString(contrast));
+        p.setProperty("whiteness", Integer.toString(whiteness));
         try (Writer w = Files.newBufferedWriter(file())) {
             p.store(w, "Quasium settings");
         } catch (Exception e) {
             Quasium.LOGGER.warn("Could not save Quasium config", e);
         }
+    }
+
+    private static int clamp(int v, int min, int max) {
+        return Math.max(min, Math.min(max, v));
     }
 }

@@ -178,6 +178,34 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
 
         this.list.addSmall(faceCulling, entityLod);
         this.list.addSmall(panorama, panoramaStart);
+
+        this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
+        var saturation = new io.github.kriskreemurr.quasarmc.quasium.client.QuasiumSlider(150, "quasarmc_quasium.options.saturation", 0, 200,
+                () -> QuasiumConfig.saturation, v -> { QuasiumConfig.saturation = v; quasium$gradeChanged(); });
+        saturation.setTooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.saturation.tooltip")));
+        var contrast = new io.github.kriskreemurr.quasarmc.quasium.client.QuasiumSlider(150, "quasarmc_quasium.options.contrast", 50, 150,
+                () -> QuasiumConfig.contrast, v -> { QuasiumConfig.contrast = v; quasium$gradeChanged(); });
+        contrast.setTooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.contrast.tooltip")));
+        var whiteness = new io.github.kriskreemurr.quasarmc.quasium.client.QuasiumSlider(150, "quasarmc_quasium.options.whiteness", 0, 100,
+                () -> QuasiumConfig.whiteness, v -> { QuasiumConfig.whiteness = v; quasium$gradeChanged(); });
+        whiteness.setTooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.whiteness.tooltip")));
+        Button reset = Button.builder(Component.translatable("quasarmc_quasium.options.color_reset"), button -> {
+                    QuasiumConfig.saturation = 100;
+                    QuasiumConfig.contrast = 100;
+                    QuasiumConfig.whiteness = 50;
+                    quasium$gradeChanged();
+                    this.rebuildWidgets();
+                })
+                .width(150)
+                .build();
+        this.list.addSmall(saturation, contrast);
+        this.list.addSmall(whiteness, reset);
+    }
+
+    @Unique
+    private static void quasium$gradeChanged() {
+        QuasiumConfig.save();
+        io.github.kriskreemurr.quasarmc.quasium.client.ColorGrade.update();
     }
 
     @Unique

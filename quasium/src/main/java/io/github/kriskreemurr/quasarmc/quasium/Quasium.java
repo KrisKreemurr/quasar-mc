@@ -17,7 +17,10 @@ public class Quasium {
 
     public Quasium(IEventBus modEventBus, ModContainer modContainer) {
         QuasiumConfig.load();
-        modEventBus.addListener(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent.class, event -> event.enqueueWork(Quasium::registerDebugEntry));
+        modEventBus.addListener(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent.class, event -> event.enqueueWork(() -> {
+            registerDebugEntry();
+            io.github.kriskreemurr.quasarmc.quasium.client.ColorGrade.init();
+        }));
         LOGGER.info("Quasium loaded (face culling: {}, entity LOD: {})", QuasiumConfig.faceCulling ? "on" : "off", QuasiumConfig.entityLod ? "on" : "off");
     }
 
