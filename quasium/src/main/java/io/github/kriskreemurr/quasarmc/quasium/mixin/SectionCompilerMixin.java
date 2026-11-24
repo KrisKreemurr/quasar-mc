@@ -26,7 +26,11 @@ public class SectionCompilerMixin {
     @Inject(
             method = "compile(Lnet/minecraft/core/SectionPos;Lnet/minecraft/client/renderer/chunk/RenderSectionRegion;Lcom/mojang/blaze3d/vertex/VertexSorting;Lnet/minecraft/client/renderer/SectionBufferBuilderPack;Ljava/util/List;)Lnet/minecraft/client/renderer/chunk/SectionCompiler$Results;",
             at = @At("HEAD"))
-    private void quasium$roundLightBegin(SectionPos section, RenderSectionRegion region, CallbackInfoReturnable<SectionCompiler.Results> cir) {
+    private void quasium$roundLightBegin(SectionPos section, RenderSectionRegion region,
+                                         com.mojang.blaze3d.vertex.VertexSorting sorting,
+                                         net.minecraft.client.renderer.SectionBufferBuilderPack buffers,
+                                         java.util.List<?> extra,
+                                         CallbackInfoReturnable<SectionCompiler.Results> cir) {
         RoundLight.begin(section, region);
     }
 
