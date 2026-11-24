@@ -9,6 +9,8 @@
     "EntityLightHolderMixin",
     "EntityLodHolderMixin",
     "EntityRenderDispatcherMixin",
+    "EntityRenderDispatcherTintMixin",
+    "EntityRenderStateTintMixin",
     "EntityRendererLightMixin",
     "LevelExtractorMixin",
     "LevelRendererMixin",
@@ -17,6 +19,7 @@
     "SectionCompilerMixin",
     "SectionCompilerResultsMixin",
     "SectionCopyAccessor",
+    "SubmitNodeCollectionTintMixin",
     "VideoSettingsScreenMixin"
   ],
   "injectors": {

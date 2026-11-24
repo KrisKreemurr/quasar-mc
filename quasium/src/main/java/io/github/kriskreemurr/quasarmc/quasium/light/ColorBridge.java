@@ -14,7 +14,15 @@ public final class ColorBridge {
 
     private ColorBridge() {}
 
+    /**
+     * CPU copy of the section colors for entity tint: SectionPos.asLong -> 4096 RGBA8 (index (y*16+z)*16+x).
+     * Kept to render distance + 1 by {@link #prune}.
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<Long, int[]> CELLS = new java.util.concurrent.ConcurrentHashMap<>();
+
     static void submit(SectionPos section, int[] cells) {
+        if (cells == null) CELLS.remove(section.asLong());
+        else CELLS.put(section.asLong(), cells);
         if (!looked) init();
         MethodHandle h = submit;
         if (h == null) return;
@@ -23,6 +31,17 @@ public final class ColorBridge {
         } catch (Throwable t) {
             submit = null;
         }
+    }
+
+    /** RGBA8 of the block at x, y, z (rgb = light color, a = brightness in sixteenths), 0 if unknown. */
+    static int cell(int x, int y, int z) {
+        int[] c = CELLS.get(SectionPos.asLong(x >> 4, y >> 4, z >> 4));
+        return c == null ? 0 : c[((y & 15) * 16 + (z & 15)) * 16 + (x & 15)];
+    }
+
+    /** Drop sections farther than {@code radius} sections (horizontally) from the camera section. */
+    static void prune(int cx, int cz, int radius) {
+        CELLS.keySet().removeIf(k -> Math.abs(SectionPos.x(k) - cx) > radius || Math.abs(SectionPos.z(k) - cz) > radius);
     }
 
     /** Colored Light setting changed: switch Meshelium's shader between color and plain. */
