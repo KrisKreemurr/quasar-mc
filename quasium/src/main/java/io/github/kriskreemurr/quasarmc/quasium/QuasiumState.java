@@ -11,6 +11,7 @@ public final class QuasiumState {
     static long pendingDrawn, pendingSkipped;
 
     public static void beginFrame(Vec3 cam) {
+        FrameStats.frame();
         cameraPos = cam;
         quadsDrawn = pendingDrawn;
         quadsSkipped = pendingSkipped;

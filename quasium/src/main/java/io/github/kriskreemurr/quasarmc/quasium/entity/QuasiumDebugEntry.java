@@ -12,6 +12,9 @@ public class QuasiumDebugEntry implements DebugScreenEntry {
     @Override
     public void display(DebugScreenDisplayer displayer, @Nullable Level level, @Nullable LevelChunk a, @Nullable LevelChunk b) {
         displayer.addLine(ChatFormatting.LIGHT_PURPLE + "[Quasium]" + ChatFormatting.RESET);
+        displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.FrameStats.line1());
+        String lows = io.github.kriskreemurr.quasarmc.quasium.FrameStats.line2();
+        if (!lows.isEmpty()) displayer.addLine(lows);
         displayer.addLine(EntityLod.f3Line());
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.RoundLight.f3Line());
     }
