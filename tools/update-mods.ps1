@@ -62,7 +62,11 @@ $sources = @(
     # Meshelium fork (LGPL-3.0): mesh-shader terrain + Quasar lighting changes
     @{ Repo = "KrisKreemurr/quasar-meshelium"; Branch = "quasar/26.3"; Artifact = "quasar-meshelium-26.3";
        Take = @("QuasarMeshelium-neoforge-*.jar");
-       Remove = @("QuasarMeshelium*.jar", "meshelium*.jar", "Meshelium*.jar") }
+       Remove = @("QuasarMeshelium*.jar", "meshelium*.jar", "Meshelium*.jar") },
+    # Immersive Portals fork (Apache-2.0): seamless portals, 26.3 port (renderer replaced by Quasar MC's)
+    @{ Repo = "KrisKreemurr/quasar-immersiveportals"; Branch = "quasar/26.3"; Artifact = "quasar-immersiveportals-26.3";
+       Take = @("QuasarImmersivePortals-*.jar");
+       Remove = @("QuasarImmersivePortals*.jar", "immersive_portals*.jar", "immersive-portals*.jar", "imm_ptl*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
