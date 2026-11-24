@@ -4,6 +4,7 @@
   "package": "io.github.kriskreemurr.quasarmc.quasium.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "BlockStateShadeMixin",
     "CompiledSectionMeshMixin",
     "DebugScreenEntriesAccessor",
     "EntityLightHolderMixin",
