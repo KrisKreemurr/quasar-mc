@@ -132,6 +132,28 @@ public final class SunShadow {
         return (packed & 0xFF00FFFF) | (newSky << 16);
     }
 
+    /** Entities: is this point in the sun's shadow right now? Walks the live client level (up to 32 blocks). */
+    public static float entitySkyFactor(net.minecraft.world.level.Level level, net.minecraft.world.phys.Vec3 p) {
+        float[] s = sun;
+        if (!QuasiumConfig.sunShadows || s[3] <= 0) return 1f;
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        double x = p.x, y = p.y, z = p.z;
+        int lx = Integer.MIN_VALUE, ly = 0, lz = 0;
+        for (int i = 1; i <= 64; i++) { // half-block steps, 32 blocks
+            x += s[0] * 0.5;
+            y += s[1] * 0.5;
+            z += s[2] * 0.5;
+            int bx = net.minecraft.util.Mth.floor(x), by = net.minecraft.util.Mth.floor(y), bz = net.minecraft.util.Mth.floor(z);
+            if (bx == lx && by == ly && bz == lz) continue;
+            lx = bx; ly = by; lz = bz;
+            if (by > level.getMaxY()) break;
+            BlockState st = level.getBlockState(m.set(bx, by, bz));
+            if (st.isAir()) continue;
+            if (st.isSolidRender() || st.is(BlockTags.LEAVES)) return 1f - s[3] * QuasiumConfig.sunShadowStrength / 100f;
+        }
+        return 1f;
+    }
+
     private static boolean shaded(Work w, int x, int y, int z) {
         int idx = (y * N + z) * N + x;
         byte s = w.state[idx];
