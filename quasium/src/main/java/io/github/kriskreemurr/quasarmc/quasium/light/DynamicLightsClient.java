@@ -8,9 +8,6 @@ public final class DynamicLightsClient {
     private DynamicLightsClient() {}
 
     public static void register() {
-        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> {
-            DynamicLights.tick();
-            SunShadow.tick();
-        });
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> DynamicLights.tick());
     }
 }

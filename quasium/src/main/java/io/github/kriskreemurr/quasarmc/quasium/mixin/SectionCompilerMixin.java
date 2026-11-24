@@ -32,7 +32,6 @@ public class SectionCompilerMixin {
                                          java.util.List<?> extra,
                                          CallbackInfoReturnable<SectionCompiler.Results> cir) {
         RoundLight.begin(section, region);
-        io.github.kriskreemurr.quasarmc.quasium.light.SunShadow.begin(region);
     }
 
     @Inject(
@@ -40,7 +39,6 @@ public class SectionCompilerMixin {
             at = @At("RETURN"))
     private void quasium$bucketFaces(CallbackInfoReturnable<SectionCompiler.Results> cir) {
         RoundLight.end();
-        io.github.kriskreemurr.quasarmc.quasium.light.SunShadow.end();
         SectionCompiler.Results results = cir.getReturnValue();
         if (results == null) return;
         FaceBuckets[] buckets = null;
