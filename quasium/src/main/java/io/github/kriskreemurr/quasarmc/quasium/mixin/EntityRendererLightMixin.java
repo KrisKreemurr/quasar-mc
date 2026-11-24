@@ -26,9 +26,18 @@ public abstract class EntityRendererLightMixin<T extends Entity> {
 
     @Inject(method = "getPackedLightCoords", at = @At("HEAD"), cancellable = true)
     private void quasium$smoothLight(T entity, float partialTick, CallbackInfoReturnable<Integer> cir) {
-        if (!QuasiumConfig.smoothEntityLight) return;
+        boolean dynamic = io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.sources().length > 0;
+        if (!QuasiumConfig.smoothEntityLight && !dynamic) return;
         Level level = entity.level();
         Vec3 p = entity.getLightProbePosition(partialTick);
+        if (!QuasiumConfig.smoothEntityLight) {
+            // plain vanilla sample, plus nearby moving lights
+            BlockPos at = BlockPos.containing(p);
+            int vb = getBlockLightLevel(entity, at);
+            float db = io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.entityLight(p);
+            cir.setReturnValue(SmoothEntityLight.pack(Math.max(vb, db), getSkyLightLevel(entity, at)));
+            return;
+        }
         // Block centres sit at +0.5, so blend between the 8 centres around the probe.
         double gx = p.x - 0.5, gy = p.y - 0.5, gz = p.z - 0.5;
         int bx = Mth.floor(gx), by = Mth.floor(gy), bz = Mth.floor(gz);
@@ -55,6 +64,7 @@ public abstract class EntityRendererLightMixin<T extends Entity> {
             block = blockSum / weightSum;
             sky = skySum / weightSum;
         }
+        if (dynamic) block = Math.max(block, io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.entityLight(p));
         cir.setReturnValue(SmoothEntityLight.ease(entity, block, sky));
     }
 }

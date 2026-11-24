@@ -23,5 +23,10 @@
   "quasarmc_quasium.options.smooth_entity_light": "Smooth Entity Light",
   "quasarmc_quasium.options.smooth_entity_light.tooltip": "Players and mobs fade smoothly between light levels instead of jumping a step at each block. Costs almost nothing.",
   "quasarmc_quasium.options.round_light": "Round Light",
-  "quasarmc_quasium.options.round_light.tooltip": "Torches and other light blocks light the ground in a smooth circle instead of a diamond with visible steps. Visual only: mob spawning and crops still use normal light. Costs a little time when chunks are built near light sources (see the [Quasium] F3 line)."
+  "quasarmc_quasium.options.round_light.tooltip": "Torches and other light blocks light the ground in a smooth circle instead of a diamond with visible steps. Visual only: mob spawning and crops still use normal light. Costs a little time when chunks are built near light sources (see the [Quasium] F3 line).",
+  "quasarmc_quasium.options.dynamic_lights": "Dynamic Lights",
+  "quasarmc_quasium.options.dynamic_lights.eco": "Eco",
+  "quasarmc_quasium.options.dynamic_lights.balanced": "Balanced",
+  "quasarmc_quasium.options.dynamic_lights.smooth": "Smooth",
+  "quasarmc_quasium.options.dynamic_lights.tooltip": "Held torches, dropped light items and burning mobs light up their surroundings. Smooth: the light follows every block you move. Balanced: up to ~5 moves a second. Eco: ~2 a second. Far-away lights update less often either way."
 }

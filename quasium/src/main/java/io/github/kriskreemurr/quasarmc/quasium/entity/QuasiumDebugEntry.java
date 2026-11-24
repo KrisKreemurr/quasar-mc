@@ -17,6 +17,7 @@ public class QuasiumDebugEntry implements DebugScreenEntry {
         if (!lows.isEmpty()) displayer.addLine(lows);
         displayer.addLine(EntityLod.f3Line());
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.RoundLight.f3Line());
+        displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.f3Line());
     }
 
     @Override

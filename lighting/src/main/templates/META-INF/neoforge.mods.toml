@@ -9,6 +9,9 @@ description='''
 ${mod_description}
 '''
 
+[[mixins]]
+    config="quasarmc_lighting.mixins.json"
+
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"

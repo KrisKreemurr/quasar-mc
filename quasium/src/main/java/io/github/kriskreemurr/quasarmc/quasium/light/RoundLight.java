@@ -100,7 +100,7 @@ public final class RoundLight {
     public static void begin(SectionPos section, RenderSectionRegion region) {
         Work w = WORK.get();
         w.region = null;
-        if (!QuasiumConfig.roundLight) return;
+        if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return;
         long start = System.nanoTime();
         built.incrementAndGet();
         try {
@@ -139,7 +139,7 @@ public final class RoundLight {
 
     /** F3 line: stats over the last full second (counted on worker threads, shown on the render thread). */
     public static String f3Line() {
-        if (!QuasiumConfig.roundLight) return "Round light: off";
+        if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return "Round light: off";
         long now = System.nanoTime();
         if (now - windowStart >= 1_000_000_000L) {
             windowStart = now;
@@ -163,7 +163,7 @@ public final class RoundLight {
         // 1) find light sources that can reach the target box
         boolean any = false;
         boolean cleared = false;
-        for (int sy = 0; sy < 3; sy++) {
+        if (QuasiumConfig.roundLight) for (int sy = 0; sy < 3; sy++) {
             for (int sz = 0; sz < 3; sz++) {
                 for (int sx = 0; sx < 3; sx++) {
                     SectionCopy copy = copies[sx + sy * 3 + sz * 9];
@@ -201,6 +201,28 @@ public final class RoundLight {
                         }
                     }
                 }
+            }
+        }
+        // moving lights (held torches, dropped items, burning mobs)
+        for (DynamicLights.Source d : DynamicLights.sources()) {
+            int x = d.x() - w.ox, y = d.y() - w.oy, z = d.z() - w.oz;
+            if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) continue;
+            int ex = Math.max(0, Math.max(tMin - x, x - tMax));
+            int ey = Math.max(0, Math.max(tMin - y, y - tMax));
+            int ez = Math.max(0, Math.max(tMin - z, z - tMax));
+            if (ex * ex + ey * ey + ez * ez >= d.lum() * d.lum()) continue;
+            if (!cleared) {
+                clear(w);
+                cleared = true;
+            }
+            int idx = (y * N + z) * N + x;
+            int v = Math.min(MAX, d.lum() * 16);
+            if (v > w.value[idx]) {
+                w.value[idx] = (short) v;
+                w.src[idx] = idx;
+                w.srcValue[idx] = (short) v;
+                w.push(v, idx);
+                any = true;
             }
         }
         if (!any) return false;

@@ -195,8 +195,18 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                 .width(150)
                 .build();
 
+        Button dynamicLights = Button.builder(quasium$dynamicLightsLabel(), button -> {
+                    QuasiumConfig.dynamicLights = (QuasiumConfig.dynamicLights + 1) % 4;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$dynamicLightsLabel());
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.dynamic_lights.tooltip")))
+                .width(310)
+                .build();
+
         this.list.addSmall(faceCulling, entityLod);
         this.list.addSmall(roundLight, smoothLight);
+        this.list.addBig(dynamicLights);
         this.list.addSmall(panorama, panoramaStart);
 
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
@@ -247,6 +257,15 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.entity_lod"),
                 QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$dynamicLightsLabel() {
+        String[] keys = {"options.off", "quasarmc_quasium.options.dynamic_lights.eco",
+                "quasarmc_quasium.options.dynamic_lights.balanced", "quasarmc_quasium.options.dynamic_lights.smooth"};
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.dynamic_lights"),
+                Component.translatable(keys[QuasiumConfig.dynamicLights]));
     }
 
     @Unique

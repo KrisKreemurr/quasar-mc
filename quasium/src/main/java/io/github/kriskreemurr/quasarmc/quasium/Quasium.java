@@ -18,6 +18,7 @@ public class Quasium {
     public Quasium(IEventBus modEventBus, ModContainer modContainer) {
         QuasiumConfig.load();
         modEventBus.addListener(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent.class, event -> event.enqueueWork(() -> {
+            io.github.kriskreemurr.quasarmc.quasium.light.DynamicLightsClient.register();
             registerDebugEntry();
             io.github.kriskreemurr.quasarmc.quasium.client.ColorGrade.init();
         }));
