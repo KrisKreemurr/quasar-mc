@@ -60,7 +60,10 @@ public final class RoundLight {
     private static final ThreadLocal<Work> WORK = ThreadLocal.withInitial(Work::new);
 
     // F3 stats
-    private static final AtomicLong built = new AtomicLong(), lit = new AtomicLong(), nanos = new AtomicLong();
+    private static final AtomicLong built = new AtomicLong(), lit = new AtomicLong(), nanos = new AtomicLong(),
+            maxNanos = new AtomicLong();
+    private static long windowStart = System.nanoTime();
+    private static String shown = "Round light: idle";
     private static volatile boolean warned;
 
     private RoundLight() {}
@@ -112,7 +115,9 @@ public final class RoundLight {
                 Quasium.LOGGER.error("Quasium round light failed; this section uses vanilla light", t);
             }
         }
-        nanos.addAndGet(System.nanoTime() - start);
+        long took = System.nanoTime() - start;
+        nanos.addAndGet(took);
+        maxNanos.accumulateAndGet(took, Math::max);
     }
 
     /** Called when the section build ends. */
@@ -132,12 +137,18 @@ public final class RoundLight {
         return round > vanilla ? (packed & ~0xFF) | round : packed;
     }
 
+    /** F3 line: stats over the last full second (counted on worker threads, shown on the render thread). */
     public static String f3Line() {
-        long b = built.getAndSet(0), l = lit.getAndSet(0), n = nanos.getAndSet(0);
         if (!QuasiumConfig.roundLight) return "Round light: off";
-        if (b == 0) return "Round light: idle";
-        return String.format("Round light: %d builds (%d lit), %.2f ms avg, %.2f ms per lit", b, l,
-                n / 1e6 / b, l == 0 ? 0.0 : n / 1e6 / l);
+        long now = System.nanoTime();
+        if (now - windowStart >= 1_000_000_000L) {
+            windowStart = now;
+            long b = built.getAndSet(0), l = lit.getAndSet(0), n = nanos.getAndSet(0), mx = maxNanos.getAndSet(0);
+            shown = b == 0 ? "Round light: idle"
+                    : String.format("Round light: %d builds/s (%d lit), %.2f ms avg, %.2f ms per lit, max %.2f ms",
+                    b, l, n / 1e6 / b, l == 0 ? 0.0 : n / 1e6 / l, mx / 1e6);
+        }
+        return shown;
     }
 
     private static boolean compute(Work w, SectionPos section, RenderSectionRegion region) {
