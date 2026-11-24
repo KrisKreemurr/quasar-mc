@@ -67,6 +67,10 @@ public final class RoundLight {
 
     private static final class Work {
         final short[] value = new short[N * N2];
+        /** Cell index of the (possibly virtual) source this cell's light is measured from. */
+        final int[] src = new int[N * N2];
+        /** Light at that source, in sixteenths. */
+        final short[] srcValue = new short[N * N2];
         final byte[] flag = new byte[N * N2];
         final byte[] damp = new byte[N * N2];
         final BlockState[] state = new BlockState[N * N2];
@@ -177,6 +181,8 @@ public final class RoundLight {
                                 int v = Math.min(MAX, emission * 16);
                                 if (v > w.value[idx]) {
                                     w.value[idx] = (short) v;
+                                    w.src[idx] = idx;
+                                    w.srcValue[idx] = (short) v;
                                     w.push(v, idx);
                                     any = true;
                                 }
@@ -193,6 +199,7 @@ public final class RoundLight {
 
     private static void clear(Work w) {
         Arrays.fill(w.value, (short) 0);
+        Arrays.fill(w.src, -1);
         Arrays.fill(w.flag, UNKNOWN);
         Arrays.fill(w.state, null);
         Arrays.fill(w.bucketSize, 0);
@@ -200,21 +207,37 @@ public final class RoundLight {
 
     private static void propagate(Work w, RenderSectionRegion region) {
         for (int v = MAX; v > 0; v--) {
-            // the bucket can grow while we walk it only for lower values, never for v itself
+            // bucketSize is re-read each round: a few cells can be (re)queued into the bucket being walked
             for (int i = 0; i < w.bucketSize[v]; i++) {
                 int idx = w.bucket[v][i];
-                if (w.value[idx] != v) continue; // superseded by a brighter path
+                int cv = w.value[idx];
+                if (cv < v) continue; // superseded (stale entry)
                 int x = idx % N, z = (idx / N) % N, y = idx / N2;
+                int s = w.src[idx];
+                int sv = w.srcValue[idx];
+                int sx = s % N, sz = (s / N) % N, sy = s / N2;
                 for (int[] o : OFFSETS) {
                     int nx = x + o[0], ny = y + o[1], nz = z + o[2];
                     if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
                     int nIdx = (ny * N + nz) * N + nx;
                     if (flag(w, region, nIdx) == OPAQUE) continue;
-                    int axes = (o[0] != 0 ? 1 : 0) + (o[1] != 0 ? 1 : 0) + (o[2] != 0 ? 1 : 0);
-                    int cost = axes == 1 ? COST1 : axes == 2 ? COST2 : COST3;
                     int d = w.damp[nIdx];
-                    if (d > 1) cost = Math.max(cost, d * 16);
-                    int nv = v - cost;
+                    int nv, ns, nsv;
+                    if (d <= 1 && visible(w, region, nx, ny, nz, s, sx, sy, sz)) {
+                        // straight line back to the source is open: true distance -> round falloff
+                        double ddx = nx - sx, ddy = ny - sy, ddz = nz - sz;
+                        nv = sv - (int) Math.round(16.0 * Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz));
+                        ns = s;
+                        nsv = sv;
+                    } else {
+                        // around a corner or through a dimming block: continue from this cell
+                        int axes = (o[0] != 0 ? 1 : 0) + (o[1] != 0 ? 1 : 0) + (o[2] != 0 ? 1 : 0);
+                        int cost = axes == 1 ? COST1 : axes == 2 ? COST2 : COST3;
+                        if (d > 1) cost = Math.max(cost, d * 16);
+                        nv = cv - cost;
+                        ns = idx;
+                        nsv = cv;
+                    }
                     if (nv <= w.value[nIdx]) continue;
                     // prune: from here the light can't get back into the box we actually read
                     int ex = Math.max(0, Math.max(T_MIN - nx, nx - T_MAX));
@@ -223,11 +246,32 @@ public final class RoundLight {
                     if (nv * nv <= 256 * (ex * ex + ey * ey + ez * ez)) continue;
                     if (!reachable(w, region, x, y, z, o[0], o[1], o[2])) continue;
                     w.value[nIdx] = (short) nv;
-                    w.push(nv, nIdx);
+                    w.src[nIdx] = ns;
+                    w.srcValue[nIdx] = (short) nsv;
+                    w.push(Math.min(nv, v), nIdx);
                 }
             }
             w.bucketSize[v] = 0;
         }
+    }
+
+    /** -1, 0 or 1: the step along one axis that best follows the line toward the source (symmetric rounding). */
+    private static int towards(int d, int m) {
+        return 2 * Math.abs(d) >= m ? Integer.signum(d) : 0;
+    }
+
+    /**
+     * Can cell n see source s in a straight line? Checked by induction: the neighbour of n one step toward s
+     * must be s itself, or be lit by s directly (same source), with an open step between them.
+     */
+    private static boolean visible(Work w, RenderSectionRegion region, int nx, int ny, int nz, int s, int sx, int sy, int sz) {
+        int dx = sx - nx, dy = sy - ny, dz = sz - nz;
+        int m = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        if (m == 0) return true;
+        int px = nx + towards(dx, m), py = ny + towards(dy, m), pz = nz + towards(dz, m);
+        int p = (py * N + pz) * N + px;
+        if (p != s && (w.src[p] != s || w.value[p] <= 0)) return false;
+        return reachable(w, region, px, py, pz, nx - px, ny - py, nz - pz);
     }
 
     /** Is there a path of straight steps from (x,y,z) to (x+dx, y+dy, z+dz) through non-blocking cells? */
