@@ -4,6 +4,9 @@ import com.mojang.blaze3d.vertex.MeshData;
 import io.github.kriskreemurr.quasarmc.quasium.FaceBucketHolder;
 import io.github.kriskreemurr.quasarmc.quasium.FaceBuckets;
 import io.github.kriskreemurr.quasarmc.quasium.Quasium;
+import io.github.kriskreemurr.quasarmc.quasium.light.RoundLight;
+import net.minecraft.client.renderer.chunk.RenderSectionRegion;
+import net.minecraft.core.SectionPos;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.chunk.SectionCompiler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,10 +22,19 @@ import java.util.Map;
 public class SectionCompilerMixin {
     @Unique private static boolean quasium$warned;
 
+    /** Round light: compute the section's light field before any block is meshed. */
+    @Inject(
+            method = "compile(Lnet/minecraft/core/SectionPos;Lnet/minecraft/client/renderer/chunk/RenderSectionRegion;Lcom/mojang/blaze3d/vertex/VertexSorting;Lnet/minecraft/client/renderer/SectionBufferBuilderPack;Ljava/util/List;)Lnet/minecraft/client/renderer/chunk/SectionCompiler$Results;",
+            at = @At("HEAD"))
+    private void quasium$roundLightBegin(SectionPos section, RenderSectionRegion region, CallbackInfoReturnable<SectionCompiler.Results> cir) {
+        RoundLight.begin(section, region);
+    }
+
     @Inject(
             method = "compile(Lnet/minecraft/core/SectionPos;Lnet/minecraft/client/renderer/chunk/RenderSectionRegion;Lcom/mojang/blaze3d/vertex/VertexSorting;Lnet/minecraft/client/renderer/SectionBufferBuilderPack;Ljava/util/List;)Lnet/minecraft/client/renderer/chunk/SectionCompiler$Results;",
             at = @At("RETURN"))
     private void quasium$bucketFaces(CallbackInfoReturnable<SectionCompiler.Results> cir) {
+        RoundLight.end();
         SectionCompiler.Results results = cir.getReturnValue();
         if (results == null) return;
         FaceBuckets[] buckets = null;

@@ -12,8 +12,11 @@
     "EntityRendererLightMixin",
     "LevelExtractorMixin",
     "LevelRendererMixin",
+    "LightCoordsUtilMixin",
+    "RenderSectionRegionAccessor",
     "SectionCompilerMixin",
     "SectionCompilerResultsMixin",
+    "SectionCopyAccessor",
     "VideoSettingsScreenMixin"
   ],
   "injectors": {

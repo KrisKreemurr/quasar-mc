@@ -182,11 +182,21 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                     button.setMessage(quasium$smoothLightLabel());
                 })
                 .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.smooth_entity_light.tooltip")))
-                .width(310)
+                .width(150)
+                .build();
+        Button roundLight = Button.builder(quasium$roundLightLabel(), button -> {
+                    QuasiumConfig.roundLight = !QuasiumConfig.roundLight;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$roundLightLabel());
+                    // rebuild every chunk mesh so the change shows right away
+                    net.minecraft.client.Minecraft.getInstance().levelExtractor.allChanged();
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.round_light.tooltip")))
+                .width(150)
                 .build();
 
         this.list.addSmall(faceCulling, entityLod);
-        this.list.addBig(smoothLight);
+        this.list.addSmall(roundLight, smoothLight);
         this.list.addSmall(panorama, panoramaStart);
 
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
@@ -237,6 +247,13 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.entity_lod"),
                 QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$roundLightLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.round_light"),
+                QuasiumConfig.roundLight ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
     }
 
     @Unique

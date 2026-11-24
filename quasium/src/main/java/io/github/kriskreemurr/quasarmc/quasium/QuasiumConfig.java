@@ -19,6 +19,9 @@ public final class QuasiumConfig {
     /** Entities blend light between blocks and ease over time instead of snapping between light levels. */
     public static volatile boolean smoothEntityLight = true;
 
+    /** Terrain block light falls off by straight-line distance (round, no rings) instead of vanilla's diamond. */
+    public static volatile boolean roundLight = true;
+
     /** Quasar Horizons: draw far LODs from a rarely-refreshed 360° panorama instead of every frame. */
     public static volatile boolean lodPanorama = false;
     /** Quasar Horizons: distance (blocks) where the panorama takes over from live LOD drawing. */
@@ -56,6 +59,7 @@ public final class QuasiumConfig {
             faceCulling = Boolean.parseBoolean(p.getProperty("faceCulling", "true"));
             entityLod = Boolean.parseBoolean(p.getProperty("entityLod", "true"));
             smoothEntityLight = Boolean.parseBoolean(p.getProperty("smoothEntityLight", "true"));
+            roundLight = Boolean.parseBoolean(p.getProperty("roundLight", "true"));
             lodPanorama = Boolean.parseBoolean(p.getProperty("lodPanorama", "false"));
             panoramaStart = Integer.parseInt(p.getProperty("panoramaStart", "512"));
             saturation = clamp(Integer.parseInt(p.getProperty("saturation", "100")), 0, 200);
@@ -73,6 +77,7 @@ public final class QuasiumConfig {
         p.setProperty("faceCulling", Boolean.toString(faceCulling));
         p.setProperty("entityLod", Boolean.toString(entityLod));
         p.setProperty("smoothEntityLight", Boolean.toString(smoothEntityLight));
+        p.setProperty("roundLight", Boolean.toString(roundLight));
         p.setProperty("lodPanorama", Boolean.toString(lodPanorama));
         p.setProperty("panoramaStart", Integer.toString(panoramaStart));
         p.setProperty("saturation", Integer.toString(saturation));
