@@ -42,6 +42,9 @@ public final class RoundLight {
     private static final int MAX = 15 * 16;          // light in sixteenths of a level
     private static final int COST1 = 16, COST2 = 23, COST3 = 28; // 16·1, 16·√2, 16·√3
 
+    /** The cells we read back: the section plus one block around it (smooth lighting samples neighbours). */
+    private static final int T_MIN = 15, T_MAX = 32;
+
     // cell flags
     private static final byte UNKNOWN = 0, OPEN = 1, OPAQUE = 2, SHAPED = 3;
 
@@ -141,7 +144,7 @@ public final class RoundLight {
         w.oy = msy << 4;
         w.oz = msz << 4;
         // cells we read: the section plus one block around it (smooth lighting samples neighbours)
-        int tMin = 15, tMax = 32; // in region coords: 16-1 .. 31+1
+        int tMin = T_MIN, tMax = T_MAX;
         // 1) find light sources that can reach the target box
         boolean any = false;
         boolean cleared = false;
@@ -213,6 +216,11 @@ public final class RoundLight {
                     if (d > 1) cost = Math.max(cost, d * 16);
                     int nv = v - cost;
                     if (nv <= w.value[nIdx]) continue;
+                    // prune: from here the light can't get back into the box we actually read
+                    int ex = Math.max(0, Math.max(T_MIN - nx, nx - T_MAX));
+                    int ey = Math.max(0, Math.max(T_MIN - ny, ny - T_MAX));
+                    int ez = Math.max(0, Math.max(T_MIN - nz, nz - T_MAX));
+                    if (nv * nv <= 256 * (ex * ex + ey * ey + ez * ez)) continue;
                     if (!reachable(w, region, x, y, z, o[0], o[1], o[2])) continue;
                     w.value[nIdx] = (short) nv;
                     w.push(nv, nIdx);
