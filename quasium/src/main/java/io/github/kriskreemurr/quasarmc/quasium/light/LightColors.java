@@ -36,9 +36,22 @@ public final class LightColors {
 
     public static float[] of(Block block) {
         return CACHE.computeIfAbsent(block, b -> {
-            float[] c = BY_ID.get(BuiltInRegistries.BLOCK.getKey(b).toString());
+            String id = BuiltInRegistries.BLOCK.getKey(b).toString();
+            float[] c = BY_ID.get(id);
+            if (c == null) c = BY_ID.get(baseCopper(id)); // waxed/aged copper variants share the base color
             return c != null ? c : WARM_WHITE;
         });
+    }
+
+    /** "minecraft:waxed_weathered_copper_lantern" -> "minecraft:copper_lantern" (unchanged if not copper). */
+    static String baseCopper(String id) {
+        int colon = id.indexOf(':');
+        String ns = id.substring(0, colon + 1), path = id.substring(colon + 1);
+        if (path.startsWith("waxed_")) path = path.substring(6);
+        for (String age : new String[]{"exposed_", "weathered_", "oxidized_"}) {
+            if (path.startsWith(age)) { path = path.substring(age.length()); break; }
+        }
+        return ns + path;
     }
 
     /** Color of a moving light (what an entity holds, drops or burns with). */
