@@ -17,6 +17,8 @@ public class Quasium {
 
     public Quasium(IEventBus modEventBus, ModContainer modContainer) {
         QuasiumConfig.load();
+        // tells Quasar Meshelium not to add its own Video Settings row (Quasium gives it a sidebar tab)
+        System.setProperty("quasarmc.quasium.videoSidebar", "true");
         modEventBus.addListener(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent.class, event -> event.enqueueWork(() -> {
             io.github.kriskreemurr.quasarmc.quasium.light.DynamicLightsClient.register();
             registerDebugEntry();

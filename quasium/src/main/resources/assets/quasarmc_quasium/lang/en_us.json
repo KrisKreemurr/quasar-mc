@@ -28,5 +28,6 @@
   "quasarmc_quasium.options.dynamic_lights.eco": "Eco",
   "quasarmc_quasium.options.dynamic_lights.balanced": "Balanced",
   "quasarmc_quasium.options.dynamic_lights.smooth": "Smooth",
-  "quasarmc_quasium.options.dynamic_lights.tooltip": "Held torches, dropped light items and burning mobs light up their surroundings. Smooth: the light follows every block you move. Balanced: up to ~5 moves a second. Eco: ~2 a second. Far-away lights update less often either way."
+  "quasarmc_quasium.options.dynamic_lights.tooltip": "Held torches, dropped light items and burning mobs light up their surroundings. Smooth: the light follows every block you move. Balanced: up to ~5 moves a second. Eco: ~2 a second. Far-away lights update less often either way.",
+  "quasarmc_quasium.options.page.meshelium": "Meshelium"
 }

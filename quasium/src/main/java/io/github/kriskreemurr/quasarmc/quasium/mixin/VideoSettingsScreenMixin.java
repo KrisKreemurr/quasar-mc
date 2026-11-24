@@ -92,7 +92,37 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                     b -> quasium$switchPage(page)).width(100).build();
             quasium$tabs.add(addRenderableWidget(tab));
         }
+        // Meshelium's own settings screen as a sidebar tab (when Quasar Meshelium is installed)
+        if (quasium$mesheliumScreen() != null) {
+            Button tab = Button.builder(Component.translatable("quasarmc_quasium.options.page.meshelium"), b -> {
+                        try {
+                            if (this.list != null) this.list.applyUnsavedChanges();
+                            Screen screen = (Screen) quasium$mesheliumScreen().getConstructor(Screen.class).newInstance(this);
+                            this.minecraft.gui.setScreen(screen);
+                        } catch (Throwable t) {
+                            io.github.kriskreemurr.quasarmc.quasium.Quasium.LOGGER.warn("Could not open Meshelium settings", t);
+                        }
+                    }).width(100).build();
+            quasium$tabs.add(addRenderableWidget(tab));
+        }
         quasium$layoutSidebar();
+    }
+
+    @Unique private static Class<?> quasium$mesheliumClass;
+    @Unique private static boolean quasium$mesheliumLooked;
+
+    @Unique
+    private static Class<?> quasium$mesheliumScreen() {
+        if (!quasium$mesheliumLooked) {
+            quasium$mesheliumLooked = true;
+            try {
+                quasium$mesheliumClass = Class.forName("com.deds.meshelium.gui.MesheliumOptionsScreen", false,
+                        VideoSettingsScreenMixin.class.getClassLoader());
+            } catch (Throwable t) {
+                quasium$mesheliumClass = null;
+            }
+        }
+        return quasium$mesheliumClass;
     }
 
     @Inject(method = "repositionElements", at = @At("TAIL"))
