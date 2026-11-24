@@ -31,5 +31,6 @@
   "quasarmc_quasium.options.dynamic_lights.tooltip": "Held torches, dropped light items and burning mobs light up their surroundings. Smooth: the light follows every block you move. Balanced: up to ~5 moves a second. Eco: ~2 a second. Far-away lights update less often either way.",
   "quasarmc_quasium.options.page.meshelium": "Meshelium",
   "quasarmc_quasium.options.colored_light": "Colored Light",
-  "quasarmc_quasium.options.colored_light.tooltip": "Light takes the color of its source: torches warm orange, soul torches blue, copper torches green, redstone red. Needs Quasar Meshelium. Off = plain light (for comparing performance or weaker GPUs)."
+  "quasarmc_quasium.options.colored_light.tooltip": "Light takes the color of its source: torches warm orange, soul torches blue, copper torches green, redstone red. Needs Quasar Meshelium. Off = plain light (for comparing performance or weaker GPUs).",
+  "quasarmc_quasium.options.page.portals": "Portals"
 }

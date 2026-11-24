@@ -105,7 +105,37 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                     }).width(100).build();
             quasium$tabs.add(addRenderableWidget(tab));
         }
+        // Quasar Portals settings as a sidebar tab (when Quasar Immersive Portals is installed)
+        Class<?> portals = quasium$portalsScreen();
+        if (portals != null) {
+            Button tab = Button.builder(Component.translatable("quasarmc_quasium.options.page.portals"), b -> {
+                        try {
+                            if (this.list != null) this.list.applyUnsavedChanges();
+                            this.minecraft.gui.setScreen((Screen) portals.getConstructor(Screen.class).newInstance(this));
+                        } catch (Throwable t) {
+                            io.github.kriskreemurr.quasarmc.quasium.Quasium.LOGGER.warn("Could not open portal settings", t);
+                        }
+                    }).width(100).build();
+            quasium$tabs.add(addRenderableWidget(tab));
+        }
         quasium$layoutSidebar();
+    }
+
+    @Unique private static Class<?> quasium$portalsClass;
+    @Unique private static boolean quasium$portalsLooked;
+
+    @Unique
+    private static Class<?> quasium$portalsScreen() {
+        if (!quasium$portalsLooked) {
+            quasium$portalsLooked = true;
+            try {
+                quasium$portalsClass = Class.forName("qouteall.imm_ptl.core.render.quasar.PortalSettingsScreen", false,
+                        VideoSettingsScreenMixin.class.getClassLoader());
+            } catch (Throwable t) {
+                quasium$portalsClass = null;
+            }
+        }
+        return quasium$portalsClass;
     }
 
     @Unique private static Class<?> quasium$mesheliumClass;
