@@ -35,7 +35,7 @@ public final class DynamicLights {
     private static volatile Source[] published = NONE;
     private static final Int2ObjectOpenHashMap<Tracked> tracked = new Int2ObjectOpenHashMap<>();
     private static ClientLevel trackedLevel;
-    private static int updatesThisSecond, shownUpdates;
+    private static int updatesThisSecond, shownUpdates, sectionsThisSecond, shownSections;
     private static long secondStart;
 
     private DynamicLights() {}
@@ -118,6 +118,8 @@ public final class DynamicLights {
             secondStart = now;
             shownUpdates = updatesThisSecond;
             updatesThisSecond = 0;
+            shownSections = sectionsThisSecond;
+            sectionsThisSecond = 0;
         }
     }
 
@@ -138,10 +140,19 @@ public final class DynamicLights {
         int x0 = SectionPos.blockToSectionCoord(pos.getX() - r), x1 = SectionPos.blockToSectionCoord(pos.getX() + r);
         int y0 = SectionPos.blockToSectionCoord(pos.getY() - r), y1 = SectionPos.blockToSectionCoord(pos.getY() + r);
         int z0 = SectionPos.blockToSectionCoord(pos.getZ() - r), z1 = SectionPos.blockToSectionCoord(pos.getZ() + r);
+        // only sections the light's sphere actually reaches (the cube's corner sections usually aren't)
+        double cx = pos.getX() + 0.5, cy = pos.getY() + 0.5, cz = pos.getZ() + 0.5;
+        double r2 = (double) r * r;
         for (int sx = x0; sx <= x1; sx++)
             for (int sy = y0; sy <= y1; sy++)
-                for (int sz = z0; sz <= z1; sz++)
+                for (int sz = z0; sz <= z1; sz++) {
+                    double dx = Math.max(0, Math.max((sx << 4) - cx, cx - ((sx << 4) + 16)));
+                    double dy = Math.max(0, Math.max((sy << 4) - cy, cy - ((sy << 4) + 16)));
+                    double dz = Math.max(0, Math.max((sz << 4) - cz, cz - ((sz << 4) + 16)));
+                    if (dx * dx + dy * dy + dz * dz > r2) continue;
                     extractor.setSectionDirty(sx, sy, sz);
+                    sectionsThisSecond++;
+                }
     }
 
     /**
@@ -161,6 +172,7 @@ public final class DynamicLights {
 
     public static String f3Line() {
         if (QuasiumConfig.dynamicLights == 0) return "Dynamic lights: off";
-        return "Dynamic lights: " + published.length + " active, " + shownUpdates + " moves/s";
+        return "Dynamic lights: " + published.length + " active, " + shownUpdates + " moves/s, "
+                + shownSections + " section rebuilds/s";
     }
 }
