@@ -29,5 +29,9 @@
   "quasarmc_quasium.options.dynamic_lights.balanced": "Balanced",
   "quasarmc_quasium.options.dynamic_lights.smooth": "Smooth",
   "quasarmc_quasium.options.dynamic_lights.tooltip": "Held torches, dropped light items and burning mobs light up their surroundings. Smooth: the light follows every block you move. Balanced: up to ~5 moves a second. Eco: ~2 a second. Far-away lights update less often either way.",
-  "quasarmc_quasium.options.page.meshelium": "Meshelium"
+  "quasarmc_quasium.options.page.meshelium": "Meshelium",
+  "quasarmc_quasium.options.sun_shadows": "Sun Shadows",
+  "quasarmc_quasium.options.sun_shadows.tooltip": "Blocks, walls and trees cast sun shadows on the ground (first version: baked into chunks, refreshed as the sun moves). Players and mobs don't cast shadows yet.",
+  "quasarmc_quasium.options.sun_shadow_strength": "Shadow Darkness",
+  "quasarmc_quasium.options.sun_shadow_strength.tooltip": "How much darker a shaded spot is in full daylight. Changes apply as chunks rebuild (toggle Sun Shadows off and on to rebuild everything)."
 }

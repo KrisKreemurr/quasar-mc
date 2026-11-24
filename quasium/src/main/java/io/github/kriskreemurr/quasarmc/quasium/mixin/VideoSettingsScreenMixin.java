@@ -237,6 +237,19 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         this.list.addSmall(faceCulling, entityLod);
         this.list.addSmall(roundLight, smoothLight);
         this.list.addBig(dynamicLights);
+        Button sunShadows = Button.builder(quasium$sunShadowsLabel(), button -> {
+                    QuasiumConfig.sunShadows = !QuasiumConfig.sunShadows;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$sunShadowsLabel());
+                    net.minecraft.client.Minecraft.getInstance().levelExtractor.allChanged();
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.sun_shadows.tooltip")))
+                .width(150)
+                .build();
+        var shadowStrength = new io.github.kriskreemurr.quasarmc.quasium.client.QuasiumSlider(150, "quasarmc_quasium.options.sun_shadow_strength", 0, 90,
+                () -> QuasiumConfig.sunShadowStrength, val -> { QuasiumConfig.sunShadowStrength = val; QuasiumConfig.save(); });
+        shadowStrength.setTooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.sun_shadow_strength.tooltip")));
+        this.list.addSmall(sunShadows, shadowStrength);
         this.list.addSmall(panorama, panoramaStart);
 
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
@@ -287,6 +300,13 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.entity_lod"),
                 QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$sunShadowsLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.sun_shadows"),
+                QuasiumConfig.sunShadows ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
     }
 
     @Unique

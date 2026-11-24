@@ -20,6 +20,7 @@ public abstract class LightCoordsUtilMixin {
                                            BlockPos pos, CallbackInfoReturnable<Integer> cir) {
         int packed = cir.getReturnValueI();
         int adjusted = RoundLight.adjust(level, pos, packed);
+        adjusted = io.github.kriskreemurr.quasarmc.quasium.light.SunShadow.adjust(level, pos, adjusted);
         if (adjusted != packed) cir.setReturnValue(adjusted);
     }
 }
