@@ -18,6 +18,8 @@ import net.minecraft.world.phys.Vec3;
 public final class EntityTint {
     /** ARGB multiplier for the entity being submitted right now (render thread), -1 = none. */
     public static int current = -1;
+    /** Moving block being built right now (render thread), null otherwise. */
+    public static net.minecraft.core.BlockPos movingPos;
 
     public interface Holder {
         int quasium$tint();

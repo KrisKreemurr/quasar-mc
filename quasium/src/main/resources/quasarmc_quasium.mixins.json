@@ -18,6 +18,8 @@
     "LevelExtractorMixin",
     "LevelRendererMixin",
     "LightCoordsUtilMixin",
+    "ModelBlockRendererMovingMixin",
+    "MovingBlockTintMixin",
     "RenderSectionRegionAccessor",
     "RenderSectionRegionSeqMixin",
     "SectionCompilerMixin",
