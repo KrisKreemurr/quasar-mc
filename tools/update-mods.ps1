@@ -44,8 +44,8 @@ if (-not (Test-Path $Mods)) {
 # repo, branch, artifact name, jars to install, old jars to remove first
 $sources = @(
     @{ Repo = "KrisKreemurr/quasar-mc";         Branch = "main";        Artifact = "quasar-mc-mods";
-       Take = @("quasarmc_core-*.jar", "quasarmc_lighting-*.jar", "quasarmc_quasium-*.jar");
-       Remove = @("quasarmc_core-*.jar", "quasarmc_lighting-*.jar", "quasarmc_quasium-*.jar") },
+       Take = @("quasarmc_core-*.jar", "quasarmc_lighting-*.jar", "quasarmc_quasium-*.jar", "quasarmc_unbound-*.jar");
+       Remove = @("quasarmc_core-*.jar", "quasarmc_lighting-*.jar", "quasarmc_quasium-*.jar", "quasarmc_unbound-*.jar") },
     @{ Repo = "KrisKreemurr/quasar-figura";     Branch = "quasar/26.3"; Artifact = "figura-quasar-neoforge";
        Take = @("figura*.jar");
        Remove = @("figura*.jar") },

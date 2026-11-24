@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev'
+}
+
+// Shared setup comes from the root build.gradle.
+
+// Core must be configured first so we can reference its source set below.
+evaluationDependsOn(':core')
+
+dependencies {
+    // Unbound uses code from Core.
+    implementation project(':core')
+}
+
+neoForge {
+    mods {
+        // Load Core alongside Unbound when running the game from IntelliJ.
+        quasarmc_core {
+            sourceSet(project(':core').sourceSets.main)
+        }
+    }
+}

@@ -34,3 +34,4 @@ jobs:
             core/build/libs/*.jar
             lighting/build/libs/*.jar
             quasium/build/libs/*.jar
+            unbound/build/libs/*.jar

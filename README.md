@@ -10,6 +10,7 @@ Forks of other people's mods (Figura, LittleTiles, CreativeCore, ...) live in th
 |---|---|---|
 | `core/` | Quasar MC Core: shared code | `quasarmc_core` |
 | `lighting/` | Quasar MC Lighting: colored block light + sky tint | `quasarmc_lighting` |
+| `unbound/` | Quasar Unbound: new content and vanilla changes (golden weapons so far) | `quasarmc_unbound` |
 
 ## Versions
 
