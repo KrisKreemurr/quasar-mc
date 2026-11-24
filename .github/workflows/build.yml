@@ -24,14 +24,30 @@ jobs:
           cache-read-only: false
 
       - name: Build with Gradle
-        run: chmod +x gradlew && ./gradlew build
-
-      - name: Upload mod jars
-        uses: actions/upload-artifact@v4
-        with:
-          name: quasar-mc-mods
-          path: |
-            core/build/libs/*.jar
-            lighting/build/libs/*.jar
-            quasium/build/libs/*.jar
-            unbound/build/libs/*.jar
+        run: chmod +x gradlew && ./gradlew :core:compileJava
+      - name: Probe
+        run: |
+          set +e
+          MC=core/build/moddev/artifacts/minecraft-patched-26.3.0.115.jar
+          NF=$(find ~/.gradle -name "neoforge-26.3.0.115-universal.jar" | head -1)
+          CP="$MC:$NF"
+          jp() { echo "--- $1"; javap -p -cp "$CP" "$1" | grep -vE "lambda\$|^  private static" ; }
+          jp net.minecraft.world.item.component.Tool
+          jp 'net.minecraft.world.item.component.Tool$Rule'
+          jp net.minecraft.world.level.block.CropBlock
+          jp net.minecraft.world.level.block.NetherWartBlock | grep -iE "age|public"
+          javap -p -cp "$CP" net.minecraft.world.level.block.Block | grep -E "getDrops|popResource|asItem"
+          javap -p -cp "$CP" net.minecraft.world.item.ItemStack | grep -E "hurtAndBreak|isDamageableItem|getEnchantmentLevel|is\("
+          javap -p -cp "$CP" net.minecraft.world.item.enchantment.EnchantmentHelper | grep -iE "knockback|sweep"
+          unzip -l "$NF" | grep -iE "Sweep|ItemAbilit|BlockToolModification|RightClickBlock|KnockBack" | awk '{print $4}'
+          jp net.neoforged.neoforge.event.entity.player.SweepAttackEvent
+          javap -p -cp "$CP" net.neoforged.neoforge.common.ItemAbilities | grep -E "SWORD|HOE|TILL|SWEEP"
+          javap -p -cp "$CP" net.neoforged.neoforge.common.extensions.IBlockStateExtension | grep -i toolmodified
+          javap -p -cp "$CP" 'net.neoforged.neoforge.event.entity.player.PlayerInteractEvent$RightClickBlock' | grep -E "public"
+          javap -p -cp "$CP" net.neoforged.neoforge.event.entity.player.PlayerInteractEvent | grep -E "public"
+          javap -p -cp "$CP" net.minecraft.world.item.context.UseOnContext | grep -E "public"
+          javap -p -cp "$CP" net.minecraft.world.item.HoeItem 2>&1 | head -20
+          echo "--- Player.attack sweep"
+          javap -c -p -cp "$CP" net.minecraft.world.entity.player.Player | grep -iE "sweep|canPerformAction|SweepAttackEvent|knockback" | head -30
+          for f in data/minecraft/enchantment/knockback.json data/minecraft/enchantment/sweeping_edge.json data/minecraft/tags/block/incorrect_for_gold_tool.json data/minecraft/tags/block/incorrect_for_diamond_tool.json data/minecraft/tags/item/enchantable/sword.json data/minecraft/tags/item/hoes.json data/minecraft/tags/item/enchantable/sharp_weapon.json data/minecraft/tags/item/enchantable/sweeping.json; do echo "=== $f"; unzip -p "$MC" "$f"; echo; done
+          unzip -l "$MC" | grep "tags/item/enchantable/" | awk '{print $4}'
