@@ -20,17 +20,40 @@ public final class ColorBridge {
      */
     private static final java.util.concurrent.ConcurrentHashMap<Long, int[]> CELLS = new java.util.concurrent.ConcurrentHashMap<>();
 
-    static void submit(SectionPos section, int[] cells) {
-        if (cells == null) CELLS.remove(section.asLong());
-        else CELLS.put(section.asLong(), cells);
+    /** Order number of a section build's world snapshot (see RenderSectionRegionSeqMixin). */
+    public interface Snapshot {
+        long quasium$seq();
+    }
+
+    private static final java.util.concurrent.atomic.AtomicLong SEQ = new java.util.concurrent.atomic.AtomicLong();
+    /** Newest snapshot whose colors were accepted, per section. */
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> ACCEPTED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static long nextSeq() {
+        return SEQ.incrementAndGet();
+    }
+
+    /**
+     * A section build's colors ({@code null} = no colored light). Dropped if a build from a newer snapshot of
+     * this section was already accepted; the check and the hand-off happen atomically per section, so two
+     * builds finishing together can't swap order on the way to Meshelium either.
+     */
+    static void submit(SectionPos section, int[] cells, long seq) {
         if (!looked) init();
-        MethodHandle h = submit;
-        if (h == null) return;
-        try {
-            h.invokeExact(section.x(), section.y(), section.z(), cells);
-        } catch (Throwable t) {
-            submit = null;
-        }
+        ACCEPTED.compute(section.asLong(), (k, newest) -> {
+            if (newest != null && newest > seq) return newest; // stale build finished late
+            if (cells == null) CELLS.remove(k);
+            else CELLS.put(k, cells);
+            MethodHandle h = submit;
+            if (h != null) {
+                try {
+                    h.invokeExact(section.x(), section.y(), section.z(), cells);
+                } catch (Throwable t) {
+                    submit = null;
+                }
+            }
+            return seq;
+        });
     }
 
     /** RGBA8 of the block at x, y, z (rgb = light color, a = brightness in sixteenths), 0 if unknown. */
@@ -42,6 +65,7 @@ public final class ColorBridge {
     /** Drop sections farther than {@code radius} sections (horizontally) from the camera section. */
     static void prune(int cx, int cz, int radius) {
         CELLS.keySet().removeIf(k -> Math.abs(SectionPos.x(k) - cx) > radius || Math.abs(SectionPos.z(k) - cz) > radius);
+        ACCEPTED.keySet().removeIf(k -> Math.abs(SectionPos.x(k) - cx) > radius || Math.abs(SectionPos.z(k) - cz) > radius);
     }
 
     /** Colored Light setting changed: switch Meshelium's shader between color and plain. */

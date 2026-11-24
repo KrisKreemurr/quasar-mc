@@ -16,6 +16,7 @@
     "LevelRendererMixin",
     "LightCoordsUtilMixin",
     "RenderSectionRegionAccessor",
+    "RenderSectionRegionSeqMixin",
     "SectionCompilerMixin",
     "SectionCompilerResultsMixin",
     "SectionCopyAccessor",

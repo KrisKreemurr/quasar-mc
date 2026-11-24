@@ -122,8 +122,9 @@ public final class RoundLight {
     public static void begin(SectionPos section, RenderSectionRegion region) {
         Work w = WORK.get();
         w.region = null;
+        long seq = region instanceof ColorBridge.Snapshot snap ? snap.quasium$seq() : ColorBridge.nextSeq();
         if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) {
-            ColorBridge.submit(section, null);
+            ColorBridge.submit(section, null, seq);
             return;
         }
         long start = System.nanoTime();
@@ -132,9 +133,9 @@ public final class RoundLight {
             if (compute(w, section, region)) {
                 w.region = region;
                 lit.incrementAndGet();
-                ColorBridge.submit(section, exportColors(w));
+                ColorBridge.submit(section, exportColors(w), seq);
             } else {
-                ColorBridge.submit(section, null);
+                ColorBridge.submit(section, null, seq);
             }
         } catch (Throwable t) {
             w.region = null;
