@@ -12,6 +12,9 @@ public final class QuasiumState {
 
     public static void beginFrame(Vec3 cam) {
         FrameStats.frame();
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.frame(
+                mc.getDeltaTracker().getGameTimeDeltaPartialTick(false), cam);
         cameraPos = cam;
         quadsDrawn = pendingDrawn;
         quadsSkipped = pendingSkipped;

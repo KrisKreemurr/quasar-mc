@@ -25,6 +25,7 @@ public final class DynamicLights {
     public record Source(int x, int y, int z, int lum) {}
 
     private static final class Tracked {
+        Entity entity;
         long pos;
         int lum;
         long nextAllowed;
@@ -61,6 +62,8 @@ public final class DynamicLights {
         if (level != trackedLevel) {
             tracked.clear();
             published = NONE;
+            exact = new double[0];
+            exactCount = 0;
             trackedLevel = level;
         }
         if (level == null) return;
@@ -70,6 +73,9 @@ public final class DynamicLights {
                 tracked.clear();
                 published = NONE;
             }
+            exact = new double[0];
+            exactCount = 0;
+            pushToMeshelium();
             return;
         }
         long now = System.nanoTime();
@@ -84,6 +90,7 @@ public final class DynamicLights {
             Tracked t = tracked.get(e.getId());
             if (t == null) {
                 t = new Tracked();
+                t.entity = e;
                 t.pos = pos;
                 t.lum = lum;
                 tracked.put(e.getId(), t);
@@ -103,6 +110,7 @@ public final class DynamicLights {
                 else if (base == 0 && d2 > 32 * 32) interval = 100_000_000L; // mid: max ~10/s
                 t.nextAllowed = now + interval;
             }
+            t.entity = e;
             t.seen = true;
         }
         for (Iterator<Tracked> it = tracked.values().iterator(); it.hasNext(); ) {
@@ -155,16 +163,101 @@ public final class DynamicLights {
                 }
     }
 
+    // ---- per frame: exact (interpolated) light positions ------------------------------------------
+
+    /** Doubles per light, same layout as Meshelium's QuasarLights: exact xyz, baked-centre xyz, level. */
+    private static final int STRIDE = 7;
+    private static final int MAX_GPU = 16;
+    private static double[] exact = new double[0];
+    private static int exactCount;
+
+    /** Render thread, once per frame: exact light positions for entities and for Meshelium's smoothing. */
+    public static void frame(float partialTick, Vec3 cam) {
+        if (QuasiumConfig.dynamicLights == 0 || tracked.isEmpty()) {
+            if (exactCount != 0) {
+                exact = new double[0];
+                exactCount = 0;
+                pushToMeshelium();
+            }
+            return;
+        }
+        int n = tracked.size();
+        double[] out = new double[n * STRIDE];
+        double[] dist = new double[n];
+        int i = 0;
+        for (Tracked t : tracked.values()) {
+            Entity e = t.entity;
+            if (e == null || e.isRemoved()) continue;
+            Vec3 p = e instanceof net.minecraft.world.entity.item.ItemEntity
+                    ? e.getPosition(partialTick).add(0, 0.25, 0)
+                    : e.getEyePosition(partialTick);
+            int b = i * STRIDE;
+            out[b] = p.x;
+            out[b + 1] = p.y;
+            out[b + 2] = p.z;
+            out[b + 3] = BlockPos.getX(t.pos) + 0.5;
+            out[b + 4] = BlockPos.getY(t.pos) + 0.5;
+            out[b + 5] = BlockPos.getZ(t.pos) + 0.5;
+            out[b + 6] = t.lum;
+            dist[i] = p.distanceToSqr(cam);
+            i++;
+        }
+        // the GPU takes the 16 nearest; sort by distance (n is small)
+        for (int a = 1; a < i; a++) {
+            for (int c = a; c > 0 && dist[c] < dist[c - 1]; c--) {
+                double td = dist[c]; dist[c] = dist[c - 1]; dist[c - 1] = td;
+                for (int k = 0; k < STRIDE; k++) {
+                    double tv = out[c * STRIDE + k];
+                    out[c * STRIDE + k] = out[(c - 1) * STRIDE + k];
+                    out[(c - 1) * STRIDE + k] = tv;
+                }
+            }
+        }
+        exact = out;
+        exactCount = i;
+        pushToMeshelium();
+    }
+
+    private static java.lang.invoke.MethodHandle meshelium;
+    private static boolean mesheliumLooked;
+
+    /** Hand the list to Quasar Meshelium if it is installed (looked up once, reflectively). */
+    private static void pushToMeshelium() {
+        if (!mesheliumLooked) {
+            mesheliumLooked = true;
+            try {
+                Class<?> c = Class.forName("com.deds.meshelium.quasar.QuasarLights", true, DynamicLights.class.getClassLoader());
+                meshelium = java.lang.invoke.MethodHandles.publicLookup().findStatic(c, "set",
+                        java.lang.invoke.MethodType.methodType(void.class, double[].class, int.class));
+            } catch (Throwable ignored) {
+                meshelium = null; // no Quasar Meshelium: lights stay baked (step per block)
+            }
+        }
+        if (meshelium == null) return;
+        try {
+            meshelium.invokeExact(exact, Math.min(exactCount, MAX_GPU));
+        } catch (Throwable t) {
+            meshelium = null;
+        }
+    }
+
+    public static boolean smoothOnGpu() {
+        if (!mesheliumLooked) pushToMeshelium();
+        return meshelium != null;
+    }
+
     /**
      * Extra block light (0..15, fractional) that dynamic lights give a point, for lighting entities.
-     * Straight-line falloff like the terrain; walls aren't checked here (cheap, and entities are small).
+     * Uses the exact (per-frame) light positions; straight-line falloff, walls aren't checked (cheap).
      */
     public static float entityLight(Vec3 p) {
-        Source[] src = published;
+        double[] d = exact;
+        int n = exactCount;
         float best = 0;
-        for (Source s : src) {
-            double dx = p.x - (s.x() + 0.5), dy = p.y - (s.y() + 0.5), dz = p.z - (s.z() + 0.5);
-            float v = s.lum() - (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        for (int i = 0; i < n; i++) {
+            int b = i * STRIDE;
+            double dx = p.x - d[b], dy = p.y - d[b + 1], dz = p.z - d[b + 2];
+            float v = (float) d[b + 6] - (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (v > best) best = v;
         }
         return best;
@@ -173,6 +266,6 @@ public final class DynamicLights {
     public static String f3Line() {
         if (QuasiumConfig.dynamicLights == 0) return "Dynamic lights: off";
         return "Dynamic lights: " + published.length + " active, " + shownUpdates + " moves/s, "
-                + shownSections + " section rebuilds/s";
+                + shownSections + " section rebuilds/s" + (smoothOnGpu() ? ", smooth (Meshelium)" : ", stepped");
     }
 }
