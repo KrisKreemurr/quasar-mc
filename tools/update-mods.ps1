@@ -61,8 +61,8 @@ $sources = @(
        Remove = @("LittleTiles*.jar", "littletiles*.jar") },
     # Meshelium fork (LGPL-3.0): mesh-shader terrain + Quasar lighting changes
     @{ Repo = "KrisKreemurr/quasar-meshelium"; Branch = "quasar/26.3"; Artifact = "quasar-meshelium-26.3";
-       Take = @("meshelium-neoforge-*.jar");
-       Remove = @("meshelium*.jar", "Meshelium*.jar") }
+       Take = @("QuasarMeshelium-neoforge-*.jar");
+       Remove = @("QuasarMeshelium*.jar", "meshelium*.jar", "Meshelium*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
