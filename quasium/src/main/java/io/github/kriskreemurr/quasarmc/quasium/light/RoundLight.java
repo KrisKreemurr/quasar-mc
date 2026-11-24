@@ -241,8 +241,9 @@ public final class RoundLight {
         if (fb == OPAQUE) return false;
         byte fa = flag(w, region, a);
         if (fa != SHAPED && fb != SHAPED) return true;
-        Direction dir = Direction.fromDelta(dx, dy, dz);
-        if (dir == null) return false;
+        Direction dir = dx > 0 ? Direction.EAST : dx < 0 ? Direction.WEST
+                : dy > 0 ? Direction.UP : dy < 0 ? Direction.DOWN
+                : dz > 0 ? Direction.SOUTH : Direction.NORTH;
         return !Shapes.faceShapeOccludes(LightEngine.getOcclusionShape(state(w, region, a), dir),
                 LightEngine.getOcclusionShape(state(w, region, b), dir.getOpposite()));
     }
