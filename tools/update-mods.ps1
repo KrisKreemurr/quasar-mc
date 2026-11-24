@@ -58,7 +58,11 @@ $sources = @(
     # LittleTiles 26.3 port: first-boot build (tiles load/save/work but are not drawn yet - render rewrite pending)
     @{ Repo = "KrisKreemurr/quasar-littletiles"; Branch = "quasar/26.3"; Artifact = "quasar-littletiles-26.3";
        Take = @("LittleTiles_BETA_v*.jar");
-       Remove = @("LittleTiles*.jar", "littletiles*.jar") }
+       Remove = @("LittleTiles*.jar", "littletiles*.jar") },
+    # Meshelium fork (LGPL-3.0): mesh-shader terrain + Quasar lighting changes
+    @{ Repo = "KrisKreemurr/quasar-meshelium"; Branch = "quasar/26.3"; Artifact = "quasar-meshelium-26.3";
+       Take = @("meshelium-neoforge-*.jar");
+       Remove = @("meshelium*.jar", "Meshelium*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
