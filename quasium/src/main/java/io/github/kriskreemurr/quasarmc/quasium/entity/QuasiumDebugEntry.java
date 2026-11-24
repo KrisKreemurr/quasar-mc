@@ -18,6 +18,32 @@ public class QuasiumDebugEntry implements DebugScreenEntry {
         displayer.addLine(EntityLod.f3Line());
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.RoundLight.f3Line());
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.f3Line());
+        String portals = portalLine();
+        if (portals != null) displayer.addLine(portals);
+    }
+
+    // Quasar Immersive Portals' timing line, looked up by name so Quasium does not depend on the portal mod
+    private static java.lang.reflect.Method portalLineMethod;
+    private static boolean portalLookupDone;
+
+    private static String portalLine() {
+        if (!portalLookupDone) {
+            portalLookupDone = true;
+            try {
+                Class<?> c = Class.forName("qouteall.imm_ptl.core.render.quasar.PortalViewRenderer", false,
+                        QuasiumDebugEntry.class.getClassLoader());
+                portalLineMethod = c.getMethod("f3Line");
+            } catch (Throwable ignored) {
+                portalLineMethod = null;
+            }
+        }
+        if (portalLineMethod == null) return null;
+        try {
+            return (String) portalLineMethod.invoke(null);
+        } catch (Throwable t) {
+            portalLineMethod = null;
+            return null;
+        }
     }
 
     @Override
