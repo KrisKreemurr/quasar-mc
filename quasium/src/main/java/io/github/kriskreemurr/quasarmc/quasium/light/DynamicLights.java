@@ -22,12 +22,13 @@ import java.util.Iterator;
  */
 public final class DynamicLights {
     /** A light as the chunk builder sees it (published as an immutable array for the worker threads). */
-    public record Source(int x, int y, int z, int lum) {}
+    public record Source(int x, int y, int z, int lum, float[] color) {}
 
     private static final class Tracked {
         Entity entity;
         long pos;
         int lum;
+        float[] color = LightColors.WARM_WHITE;
         long nextAllowed;
         boolean seen;
     }
@@ -93,6 +94,7 @@ public final class DynamicLights {
                 t.entity = e;
                 t.pos = pos;
                 t.lum = lum;
+                t.color = LightColors.of(e);
                 tracked.put(e.getId(), t);
                 dirty(BlockPos.of(pos), lum);
                 changed = true;
@@ -102,6 +104,7 @@ public final class DynamicLights {
                 dirty(BlockPos.of(pos), lum);
                 t.pos = pos;
                 t.lum = lum;
+                t.color = LightColors.of(e);
                 changed = true;
                 updatesThisSecond++;
                 double d2 = e.distanceToSqr(cam);
@@ -135,7 +138,7 @@ public final class DynamicLights {
         Source[] out = new Source[tracked.size()];
         int i = 0;
         for (Tracked t : tracked.values()) {
-            out[i++] = new Source(BlockPos.getX(t.pos), BlockPos.getY(t.pos), BlockPos.getZ(t.pos), t.lum);
+            out[i++] = new Source(BlockPos.getX(t.pos), BlockPos.getY(t.pos), BlockPos.getZ(t.pos), t.lum, t.color);
         }
         published = out;
     }

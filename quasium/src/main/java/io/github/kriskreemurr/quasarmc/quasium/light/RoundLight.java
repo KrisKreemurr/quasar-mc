@@ -69,11 +69,21 @@ public final class RoundLight {
     private RoundLight() {}
 
     private static final class Work {
-        final short[] value = new short[N * N2];
-        /** Cell index of the (possibly virtual) source this cell's light is measured from. */
-        final int[] src = new int[N * N2];
-        /** Light at that source, in sixteenths. */
-        final short[] srcValue = new short[N * N2];
+        /** Per color channel (R, G, B): light in sixteenths, and the (possibly virtual) source it's measured from. */
+        final short[][] valueC = new short[3][N * N2];
+        final int[][] srcC = new int[3][N * N2];
+        final short[][] srcValueC = new short[3][N * N2];
+        /** The channel being propagated right now (points into the arrays above). */
+        short[] value;
+        int[] src;
+        short[] srcValue;
+        /** Brightness = brightest channel; what the terrain light lookup uses. */
+        final short[] bright = new short[N * N2];
+        /** Light sources found for this build: cell index, light (sixteenths), color. */
+        int seedCount;
+        int[] seedIdx = new int[64];
+        int[] seedV = new int[64];
+        float[][] seedColor = new float[64][];
         final byte[] flag = new byte[N * N2];
         final byte[] damp = new byte[N * N2];
         final BlockState[] state = new BlockState[N * N2];
@@ -85,6 +95,18 @@ public final class RoundLight {
 
         Work() {
             for (int i = 0; i <= MAX; i++) bucket[i] = new int[64];
+        }
+
+        void addSeed(int idx, int v, float[] color) {
+            if (seedCount == seedIdx.length) {
+                seedIdx = Arrays.copyOf(seedIdx, seedCount * 2);
+                seedV = Arrays.copyOf(seedV, seedCount * 2);
+                seedColor = Arrays.copyOf(seedColor, seedCount * 2);
+            }
+            seedIdx[seedCount] = idx;
+            seedV[seedCount] = v;
+            seedColor[seedCount] = color;
+            seedCount++;
         }
 
         void push(int v, int idx) {
@@ -100,13 +122,19 @@ public final class RoundLight {
     public static void begin(SectionPos section, RenderSectionRegion region) {
         Work w = WORK.get();
         w.region = null;
-        if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return;
+        if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) {
+            ColorBridge.submit(section, null);
+            return;
+        }
         long start = System.nanoTime();
         built.incrementAndGet();
         try {
             if (compute(w, section, region)) {
                 w.region = region;
                 lit.incrementAndGet();
+                ColorBridge.submit(section, exportColors(w));
+            } else {
+                ColorBridge.submit(section, null);
             }
         } catch (Throwable t) {
             w.region = null;
@@ -132,7 +160,7 @@ public final class RoundLight {
         if (w.region == null || w.region != level) return packed;
         int x = pos.getX() - w.ox, y = pos.getY() - w.oy, z = pos.getZ() - w.oz;
         if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) return packed;
-        int round = w.value[(y * N + z) * N + x];
+        int round = w.bright[(y * N + z) * N + x];
         int vanilla = packed & 0xFF;
         return round > vanilla ? (packed & ~0xFF) | round : packed;
     }
@@ -162,7 +190,7 @@ public final class RoundLight {
         int tMin = T_MIN, tMax = T_MAX;
         // 1) find light sources that can reach the target box
         boolean any = false;
-        boolean cleared = false;
+        w.seedCount = 0;
         if (QuasiumConfig.roundLight) for (int sy = 0; sy < 3; sy++) {
             for (int sz = 0; sz < 3; sz++) {
                 for (int sx = 0; sx < 3; sx++) {
@@ -184,19 +212,8 @@ public final class RoundLight {
                                 int ey = Math.max(0, Math.max(tMin - y, y - tMax));
                                 int ez = Math.max(0, Math.max(tMin - z, z - tMax));
                                 if (ex * ex + ey * ey + ez * ez >= emission * emission) continue;
-                                if (!cleared) {
-                                    clear(w);
-                                    cleared = true;
-                                }
-                                int idx = (y * N + z) * N + x;
-                                int v = Math.min(MAX, emission * 16);
-                                if (v > w.value[idx]) {
-                                    w.value[idx] = (short) v;
-                                    w.src[idx] = idx;
-                                    w.srcValue[idx] = (short) v;
-                                    w.push(v, idx);
-                                    any = true;
-                                }
+                                w.addSeed((y * N + z) * N + x, Math.min(MAX, emission * 16), LightColors.of(s.getBlock()));
+                                any = true;
                             }
                         }
                     }
@@ -211,31 +228,58 @@ public final class RoundLight {
             int ey = Math.max(0, Math.max(tMin - y, y - tMax));
             int ez = Math.max(0, Math.max(tMin - z, z - tMax));
             if (ex * ex + ey * ey + ez * ez >= d.lum() * d.lum()) continue;
-            if (!cleared) {
-                clear(w);
-                cleared = true;
-            }
-            int idx = (y * N + z) * N + x;
-            int v = Math.min(MAX, d.lum() * 16);
-            if (v > w.value[idx]) {
+            w.addSeed((y * N + z) * N + x, Math.min(MAX, d.lum() * 16), d.color());
+            any = true;
+        }
+        if (!any) return false;
+        // block info is shared by the three channels; each channel spreads on its own
+        Arrays.fill(w.flag, UNKNOWN);
+        Arrays.fill(w.state, null);
+        Arrays.fill(w.bright, (short) 0);
+        for (int c = 0; c < 3; c++) {
+            w.value = w.valueC[c];
+            w.src = w.srcC[c];
+            w.srcValue = w.srcValueC[c];
+            Arrays.fill(w.value, (short) 0);
+            Arrays.fill(w.src, -1);
+            Arrays.fill(w.bucketSize, 0);
+            boolean seeded = false;
+            for (int i = 0; i < w.seedCount; i++) {
+                int idx = w.seedIdx[i];
+                int v = Math.round(w.seedV[i] * w.seedColor[i][c]);
+                if (v <= 0 || v <= w.value[idx]) continue;
                 w.value[idx] = (short) v;
                 w.src[idx] = idx;
                 w.srcValue[idx] = (short) v;
                 w.push(v, idx);
-                any = true;
+                seeded = true;
             }
+            if (seeded) propagate(w, region);
+            short[] val = w.value, br = w.bright;
+            for (int i = 0; i < val.length; i++) if (val[i] > br[i]) br[i] = val[i];
         }
-        if (!any) return false;
-        propagate(w, region);
         return true;
     }
 
-    private static void clear(Work w) {
-        Arrays.fill(w.value, (short) 0);
-        Arrays.fill(w.src, -1);
-        Arrays.fill(w.flag, UNKNOWN);
-        Arrays.fill(w.state, null);
-        Arrays.fill(w.bucketSize, 0);
+    /**
+     * The section's block-light colors for Quasar Meshelium: one RGBA8 per block, rgb = color (brightest channel
+     * 255), a = brightness in sixteenths. Null if the section itself has no block light.
+     */
+    private static int[] exportColors(Work w) {
+        int[] out = null;
+        for (int y = 0; y < 16; y++) {
+            for (int z = 0; z < 16; z++) {
+                for (int x = 0; x < 16; x++) {
+                    int idx = ((y + 16) * N + (z + 16)) * N + (x + 16);
+                    int m = w.bright[idx];
+                    if (m <= 0) continue;
+                    int r = w.valueC[0][idx] * 255 / m, g = w.valueC[1][idx] * 255 / m, b = w.valueC[2][idx] * 255 / m;
+                    if (out == null) out = new int[4096];
+                    out[(y * 16 + z) * 16 + x] = r | (g << 8) | (b << 16) | (Math.min(255, m) << 24);
+                }
+            }
+        }
+        return out;
     }
 
     private static void propagate(Work w, RenderSectionRegion region) {
