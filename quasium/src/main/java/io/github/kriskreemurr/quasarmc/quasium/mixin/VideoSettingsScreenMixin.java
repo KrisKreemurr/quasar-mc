@@ -235,8 +235,18 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                 .build();
 
         this.list.addSmall(faceCulling, entityLod);
+        Button coloredLight = Button.builder(quasium$coloredLightLabel(), button -> {
+                    QuasiumConfig.coloredLight = !QuasiumConfig.coloredLight;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$coloredLightLabel());
+                    io.github.kriskreemurr.quasarmc.quasium.light.ColorBridge.applySetting();
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.colored_light.tooltip")))
+                .width(150)
+                .build();
+        dynamicLights.setWidth(150);
         this.list.addSmall(roundLight, smoothLight);
-        this.list.addBig(dynamicLights);
+        this.list.addSmall(dynamicLights, coloredLight);
         this.list.addSmall(panorama, panoramaStart);
 
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
@@ -287,6 +297,13 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.entity_lod"),
                 QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$coloredLightLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.colored_light"),
+                QuasiumConfig.coloredLight ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
     }
 
     @Unique
