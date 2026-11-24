@@ -30,6 +30,23 @@ public final class EntityTint {
 
     /** Tint for this entity's state (light already in {@code state.lightCoords}). */
     public static int compute(Entity entity, EntityRenderState state, float partialTick) {
+        return computeAt(entity.getLightProbePosition(partialTick), state.lightCoords);
+    }
+
+    /** Tint for a block entity at {@code pos} (its centre), given its packed light. */
+    public static int computeBlock(net.minecraft.core.BlockPos pos, int lightCoords) {
+        return computeAt(Vec3.atCenterOf(pos), lightCoords);
+    }
+
+    /**
+     * Round-light brightness (sixteenths, 0..240) Quasium baked for this block, 0 if unknown. Lets things drawn
+     * outside the chunk mesh (block entities, moving blocks) get round light instead of vanilla's diamond.
+     */
+    public static int roundBrightness(int x, int y, int z) {
+        return ColorBridge.cell(x, y, z) >>> 24;
+    }
+
+    private static int computeAt(Vec3 p, int lc) {
         if (!QuasiumConfig.coloredLight) return -1;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return -1;
@@ -39,11 +56,9 @@ public final class EntityTint {
             Vec3 cam = mc.gameRenderer.mainCamera().position();
             ColorBridge.prune(Mth.floor(cam.x) >> 4, Mth.floor(cam.z) >> 4, mc.options.getEffectiveRenderDistance() + 1);
         }
-        int lc = state.lightCoords;
         float block = (lc & 0xFFFF) / 16f, sky = (lc >>> 16) / 16f;
         if (block < 0.5f) return -1;
 
-        Vec3 p = entity.getLightProbePosition(partialTick);
         double gx = p.x - 0.5, gy = p.y - 0.5, gz = p.z - 0.5;
         int bx = Mth.floor(gx), by = Mth.floor(gy), bz = Mth.floor(gz);
         float fx = (float) (gx - bx), fy = (float) (gy - by), fz = (float) (gz - bz);
@@ -65,7 +80,7 @@ public final class EntityTint {
         if (m <= 0) return -1;
         r /= m; g /= m; b /= m;
 
-        // How much of the entity's light is block light: daylight (sky light scaled by time of day) washes it out.
+        // How much of the light is block light: daylight (sky light scaled by time of day) washes it out.
         float day = 1f - mc.level.getSkyDarken() / 15f;
         float skyEff = sky * day;
         float strength = block / Math.max(block + skyEff, 1e-3f);

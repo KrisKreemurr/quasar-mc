@@ -157,6 +157,12 @@ public final class RoundLight {
     /** Light lookup hook: raise the block-light half of {@code packed} to the round value. */
     public static int adjust(BlockAndLightGetter level, BlockPos pos, int packed) {
         if (packed == 15728880) return packed; // emissive / full bright
+        if (level instanceof net.minecraft.client.renderer.block.MovingBlockRenderState) {
+            // Falling sand, piston-moved blocks: use the round light baked for the block they're in.
+            if (!QuasiumConfig.roundLight) return packed;
+            int round = EntityTint.roundBrightness(pos.getX(), pos.getY(), pos.getZ());
+            return round > (packed & 0xFF) ? (packed & ~0xFF) | round : packed;
+        }
         Work w = WORK.get();
         if (w.region == null || w.region != level) return packed;
         int x = pos.getX() - w.ox, y = pos.getY() - w.oy, z = pos.getZ() - w.oz;
