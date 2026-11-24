@@ -6,8 +6,10 @@
   "client": [
     "CompiledSectionMeshMixin",
     "DebugScreenEntriesAccessor",
+    "EntityLightHolderMixin",
     "EntityLodHolderMixin",
     "EntityRenderDispatcherMixin",
+    "EntityRendererLightMixin",
     "LevelExtractorMixin",
     "LevelRendererMixin",
     "SectionCompilerMixin",

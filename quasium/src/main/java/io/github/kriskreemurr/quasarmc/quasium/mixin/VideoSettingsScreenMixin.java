@@ -176,7 +176,17 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
                 .width(150)
                 .build();
 
+        Button smoothLight = Button.builder(quasium$smoothLightLabel(), button -> {
+                    QuasiumConfig.smoothEntityLight = !QuasiumConfig.smoothEntityLight;
+                    QuasiumConfig.save();
+                    button.setMessage(quasium$smoothLightLabel());
+                })
+                .tooltip(Tooltip.create(Component.translatable("quasarmc_quasium.options.smooth_entity_light.tooltip")))
+                .width(310)
+                .build();
+
         this.list.addSmall(faceCulling, entityLod);
+        this.list.addBig(smoothLight);
         this.list.addSmall(panorama, panoramaStart);
 
         this.list.addHeader(Component.translatable("quasarmc_quasium.options.color_header"));
@@ -227,6 +237,13 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
         return CommonComponents.optionNameValue(
                 Component.translatable("quasarmc_quasium.options.entity_lod"),
                 QuasiumConfig.entityLod ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    @Unique
+    private static Component quasium$smoothLightLabel() {
+        return CommonComponents.optionNameValue(
+                Component.translatable("quasarmc_quasium.options.smooth_entity_light"),
+                QuasiumConfig.smoothEntityLight ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
     }
 
     @Unique

@@ -19,5 +19,7 @@
   "quasarmc_quasium.options.contrast.tooltip": "Difference between dark and bright. 100% = unchanged.",
   "quasarmc_quasium.options.whiteness": "Whiteness",
   "quasarmc_quasium.options.whiteness.tooltip": "How easily bright colours turn white. 50% = unchanged, higher = reaches white sooner (brighter, more washed highlights), lower = holds colour in highlights. Blacks and full white stay put.",
-  "quasarmc_quasium.options.color_reset": "Reset Colour"
+  "quasarmc_quasium.options.color_reset": "Reset Colour",
+  "quasarmc_quasium.options.smooth_entity_light": "Smooth Entity Light",
+  "quasarmc_quasium.options.smooth_entity_light.tooltip": "Players and mobs fade smoothly between light levels instead of jumping a step at each block. Costs almost nothing."
 }
