@@ -33,8 +33,14 @@ public final class QuasarHotbar {
     static final int SLOT = 24, PITCH = 25, WIDTH = 224, HEIGHT = 24;
     /** Space between the hotbar and the bottom of the screen. */
     static final int BOTTOM_GAP = 3;
-    /** How far above vanilla's positions the XP level number and stat rows move. */
-    static final int LIFT = 6;
+    /** How far above vanilla's positions the stat rows (hearts, armor, food, air) move. */
+    static final int LIFT = 7;
+    /** How far above vanilla's positions the locator / horse-jump bars move (lines up with our XP bar). */
+    static final int BAR_LIFT = 6;
+    /** Distance between stat icons: 9-px icons with 1 px of space (vanilla: 8). */
+    static final int ICON_PITCH = 10;
+    /** GUI width seen by the last hotbar draw; stat icons are drawn after it in the same frame. */
+    private static int guiWidth = 0;
     /** Gap between the hotbar and the offhand slot (half a slot plus 1). */
     static final int OFFHAND_GAP = 13;
 
@@ -59,9 +65,25 @@ public final class QuasarHotbar {
         return g.guiWidth() / 2 - WIDTH / 2;
     }
 
-    /** Draws a vanilla layer {@link #LIFT} px higher. */
+    /** Draws a vanilla bar layer {@link #BAR_LIFT} px higher. */
     static GuiLayer lifted(GuiLayer vanilla) {
-        return lifted(vanilla, LIFT);
+        return lifted(vanilla, BAR_LIFT);
+    }
+
+    /** New x for a left-side stat icon (hearts, armor) drawn by vanilla at {@code x}. */
+    public static int respaceLeft(int x) {
+        if (guiWidth == 0) return x;
+        int rel = x - (guiWidth / 2 - 91);
+        int i = Math.floorDiv(rel + 4, 8);
+        return guiWidth / 2 - WIDTH / 2 + i * ICON_PITCH + (rel - i * 8);
+    }
+
+    /** New x for a right-side stat icon (food, air, mount hearts) drawn by vanilla at {@code x}. */
+    public static int respaceRight(int x) {
+        if (guiWidth == 0) return x;
+        int rel = (guiWidth / 2 + 91 - 9) - x;
+        int i = Math.floorDiv(rel + 4, 8);
+        return guiWidth / 2 - WIDTH / 2 + WIDTH - 9 - i * ICON_PITCH - (rel - i * 8);
     }
 
     /** Draws a vanilla layer {@code lift} px higher. */
@@ -84,10 +106,12 @@ public final class QuasarHotbar {
 
         if (!(mc.getCameraEntity() instanceof Player player) || mc.gameMode == null || mc.player == null
                 || mc.player.isSpectator()) {
+            guiWidth = 0; // vanilla layout for anything drawn this frame
             vanilla.render(g, dt); // spectator menu keeps vanilla's look
             return;
         }
 
+        guiWidth = g.guiWidth();
         int x = left(g);
         int y = top(g);
         g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, x, y, WIDTH, HEIGHT);

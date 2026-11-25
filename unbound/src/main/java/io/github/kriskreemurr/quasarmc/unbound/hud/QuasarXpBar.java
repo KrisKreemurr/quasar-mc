@@ -28,8 +28,8 @@ public final class QuasarXpBar {
     private static final Identifier PROGRESS = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/experience_bar_progress");
 
     static final int WIDTH = 302, HEIGHT = 8;
-    /** Extra lift for the green level number so it clears the wavy bar. */
-    static final int LEVEL_EXTRA_LIFT = 2;
+    /** How far above vanilla's position the green level number moves. */
+    static final int LEVEL_LIFT = 10;
     /** Sprite top relative to the hotbar top: wave ends 3 px above it, clear of the selection frame. */
     static final int OFFSET = -9;
 
@@ -38,7 +38,7 @@ public final class QuasarXpBar {
     public static void register(RegisterGuiLayersEvent event) {
         event.wrapLayer(VanillaGuiLayers.CONTEXTUAL_INFO_BAR_BACKGROUND, v -> bar(v, true));
         event.wrapLayer(VanillaGuiLayers.CONTEXTUAL_INFO_BAR, v -> bar(v, false));
-        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_LEVEL, v -> QuasarHotbar.lifted(v, QuasarHotbar.LIFT + LEVEL_EXTRA_LIFT));
+        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_LEVEL, v -> QuasarHotbar.lifted(v, LEVEL_LIFT));
     }
 
     private static GuiLayer bar(GuiLayer vanilla, boolean background) {
