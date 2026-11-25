@@ -49,6 +49,10 @@ public final class Sanity {
 
     /** Last value sent to each player, in dial pixels (5% each); forces a resend when it changes. */
     private static final Map<ServerPlayer, Integer> SENT = new WeakHashMap<>();
+    /** Last rate sent to each player; a change of arrow tier is sent at once. */
+    private static final Map<ServerPlayer, Float> SENT_RATE = new WeakHashMap<>();
+    /** Current rate per player (per minute), worked out once a second. */
+    private static final Map<ServerPlayer, Float> RATE = new WeakHashMap<>();
     private static final int RESEND_TICKS = 100;
 
     private Sanity() {}
@@ -57,7 +61,10 @@ public final class Sanity {
         ATTACHMENTS.register(modBus);
         modBus.addListener(RegisterPayloadHandlersEvent.class, e -> e.registrar("1")
                 .playToClient(SanitySyncPayload.TYPE, SanitySyncPayload.STREAM_CODEC,
-                        (payload, ctx) -> SanityClientState.value = payload.value()));
+                        (payload, ctx) -> {
+                            SanityClientState.value = payload.value();
+                            SanityClientState.ratePerMinute = payload.ratePerMinute();
+                        }));
         NeoForge.EVENT_BUS.addListener(PlayerTickEvent.Post.class, e -> {
             if (e.getEntity() instanceof ServerPlayer p) tick(p);
         });
@@ -85,8 +92,11 @@ public final class Sanity {
             if (nv != v) p.setData(SANITY, nv);
             v = nv;
         }
+        RATE.put(p, perMin);
         Integer last = SENT.get(p);
-        if (last == null || last != pixel(v) || p.tickCount % RESEND_TICKS == 0) send(p);
+        Float lastRate = SENT_RATE.get(p);
+        if (last == null || last != pixel(v) || lastRate == null || arrowTier(lastRate) != arrowTier(perMin)
+                || p.tickCount % RESEND_TICKS == 0) send(p);
     }
 
     /** The light rule for where the player's eyes are right now. */
@@ -101,6 +111,16 @@ public final class Sanity {
         return day ? 0f : NIGHT_PER_MIN;
     }
 
+    /**
+     * Arrow tier for a rate: 0 none, 1 slow (up to 5/min), 2 medium (up to 15/min), 3 fast. Negative
+     * for draining. Daylight/night are slow, darkness is medium, fast is kept for things like monsters.
+     */
+    public static int arrowTier(float perMin) {
+        float a = Math.abs(perMin);
+        int t = a == 0f ? 0 : a <= 5f ? 1 : a <= 15f ? 2 : 3;
+        return perMin < 0 ? -t : t;
+    }
+
     private static int pixel(float v) {
         return Math.round(v / 5f);
     }
@@ -111,8 +131,10 @@ public final class Sanity {
 
     private static void send(ServerPlayer p) {
         float v = get(p);
+        float rate = p.isSpectator() ? 0f : RATE.getOrDefault(p, 0f);
         SENT.put(p, pixel(v));
-        PacketDistributor.sendToPlayer(p, new SanitySyncPayload(v));
+        SENT_RATE.put(p, rate);
+        PacketDistributor.sendToPlayer(p, new SanitySyncPayload(v, rate));
     }
 
     private static void registerCommands(RegisterCommandsEvent event) {

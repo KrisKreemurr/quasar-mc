@@ -28,6 +28,12 @@ public final class QuasarSanityDial {
     private static final Identifier[] BRAIN = { sprite("brain_small"), sprite("brain_mid"), sprite("brain_full") };
     private static final Identifier[] SHADOW = { sprite("brain_small_shadow"), sprite("brain_mid_shadow"), sprite("brain_full_shadow") };
 
+    private static final Identifier[] ARROW_DOWN = { sprite("arrow_small_down"), sprite("arrow_medium_down"), sprite("arrow_big_down") };
+    private static final Identifier[] ARROW_UP = { sprite("arrow_small_up"), sprite("arrow_medium_up"), sprite("arrow_big_up") };
+    /** Arrow bob: 3 px in the arrow's direction, back, 3 px the other way, back, once per period. */
+    static final int BOB_PX = 3;
+    static final long BOB_PERIOD_MS = 1200L;
+
     static final int SIZE = 26;
     /** Rows of the fill sprite that hold liquid (top row inclusive, bottom row exclusive). */
     static final int FILL_TOP = 3, FILL_BOTTOM = 23;
@@ -43,6 +49,13 @@ public final class QuasarSanityDial {
     public static void register(RegisterGuiLayersEvent event) {
         event.registerAbove(VanillaGuiLayers.HOTBAR, Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "sanity_dial"),
                 QuasarSanityDial::draw);
+    }
+
+    /** 0 → +3 → 0 → -3 → 0 over one period, in whole pixels (positive = the arrow's direction). */
+    static int bobOffset(long nowMs) {
+        float t = (nowMs % BOB_PERIOD_MS) / (float) BOB_PERIOD_MS;
+        float f = t < 0.25f ? t * 4f : t < 0.75f ? 2f - t * 4f : t * 4f - 4f;
+        return Math.round(f * BOB_PX);
     }
 
     private static void draw(GuiGraphicsExtractor g, DeltaTracker dt) {
@@ -73,5 +86,14 @@ public final class QuasarSanityDial {
         int stage = f > 2f / 3f ? 2 : f > 1f / 3f ? 1 : 0;
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SHADOW[stage], x, y, SIZE, SIZE);
         g.blitSprite(RenderPipelines.GUI_TEXTURED, BRAIN[stage], x, y, SIZE, SIZE);
+
+        // Rate arrows (DST style): size = speed, pointing the way sanity is going, bobbing that way.
+        int tier = Sanity.arrowTier(SanityClientState.ratePerMinute);
+        if (tier != 0) {
+            boolean down = tier < 0;
+            int bob = bobOffset(System.currentTimeMillis());
+            Identifier arrow = (down ? ARROW_DOWN : ARROW_UP)[Math.abs(tier) - 1];
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, arrow, x, y + (down ? bob : -bob), SIZE, SIZE);
+        }
     }
 }
