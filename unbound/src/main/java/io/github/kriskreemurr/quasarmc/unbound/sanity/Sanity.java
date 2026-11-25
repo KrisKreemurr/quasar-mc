@@ -15,6 +15,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.LightLayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -32,6 +34,7 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
  * <ul>
  * <li>Daylight (dimension with a sky, daytime, sky visible from the eyes): +4/min</li>
  * <li>Pure darkness (light level 0, same as mob spawning): -12.5/min (full to empty in 8 min)</li>
+ * <li>Holding a light-giving block in either hand: 0 (a carried torch cancels darkness and night)</li>
  * <li>Lit by a light source (block light 1+): 0 (safe, not healing)</li>
  * <li>Otherwise lit only by the sky: daytime 0 (indoors/shade), not daytime -4/min</li>
  * </ul>
@@ -106,6 +109,7 @@ public final class Sanity {
         boolean hasSky = level.dimensionType().hasSkyLight();
         boolean day = hasSky && Math.floorMod(level.getDefaultClockTime(), 24000L) < 12000L;
         if (day && level.canSeeSky(eyes)) return DAY_PER_MIN;
+        if (holdsLight(p)) return 0f; // a carried light counts as a lit area (cancels darkness and night)
         if (level.getMaxLocalRawBrightness(eyes) == 0) return DARK_PER_MIN;
         if (level.getBrightness(LightLayer.BLOCK, eyes) > 0) return 0f;
         return day ? 0f : NIGHT_PER_MIN;
@@ -119,6 +123,16 @@ public final class Sanity {
         float a = Math.abs(perMin);
         int t = a == 0f ? 0 : a <= 5f ? 1 : a <= 15f ? 2 : 3;
         return perMin < 0 ? -t : t;
+    }
+
+    /** True if either hand holds a block that gives off light (torch, lantern, glowstone, modded lights...). */
+    static boolean holdsLight(ServerPlayer p) {
+        return emitsLight(p.getMainHandItem()) || emitsLight(p.getOffhandItem());
+    }
+
+    private static boolean emitsLight(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof BlockItem item
+                && item.getBlock().defaultBlockState().getLightEmission() > 0;
     }
 
     private static int pixel(float v) {
