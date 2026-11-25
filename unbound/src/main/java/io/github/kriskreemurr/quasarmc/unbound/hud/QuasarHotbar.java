@@ -37,6 +37,8 @@ public final class QuasarHotbar {
     static final int LIFT = 7;
     /** How far above vanilla's positions the locator / horse-jump bars move (lines up with our XP bar). */
     static final int BAR_LIFT = 6;
+    /** How far past the hotbar the stat rows reach: out to the outer edge of the offhand / sanity dial. */
+    static final int SIDE_REACH = SLOT + OFFHAND_GAP;
     /** Distance between stat icons: 9-px icons with 1 px of space (vanilla: 8). */
     static final int ICON_PITCH = 10;
     /** GUI width seen by the last hotbar draw; stat icons are drawn after it in the same frame. */
@@ -75,7 +77,7 @@ public final class QuasarHotbar {
         if (guiWidth == 0) return x;
         int rel = x - (guiWidth / 2 - 91);
         int i = Math.floorDiv(rel + 4, 8);
-        return guiWidth / 2 - WIDTH / 2 + i * ICON_PITCH + (rel - i * 8);
+        return guiWidth / 2 - WIDTH / 2 - SIDE_REACH + i * ICON_PITCH + (rel - i * 8);
     }
 
     /** Index (0 = leftmost) of a left-side stat icon drawn by vanilla at {@code x}. */
@@ -89,7 +91,7 @@ public final class QuasarHotbar {
         if (guiWidth == 0) return x;
         int rel = (guiWidth / 2 + 91 - 9) - x;
         int i = Math.floorDiv(rel + 4, 8);
-        return guiWidth / 2 - WIDTH / 2 + WIDTH - 9 - i * ICON_PITCH - (rel - i * 8);
+        return guiWidth / 2 - WIDTH / 2 + WIDTH + SIDE_REACH - 9 - i * ICON_PITCH - (rel - i * 8);
     }
 
     /** Draws a vanilla layer {@code lift} px higher. */
