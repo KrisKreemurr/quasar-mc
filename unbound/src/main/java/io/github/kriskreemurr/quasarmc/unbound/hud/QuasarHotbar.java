@@ -38,7 +38,7 @@ public final class QuasarHotbar {
     /** How far above vanilla's positions the locator / horse-jump bars move (lines up with our XP bar). */
     static final int BAR_LIFT = 6;
     /** How far past the hotbar the stat rows reach: out to the outer edge of the offhand / sanity dial. */
-    static final int SIDE_REACH = SLOT + OFFHAND_GAP;
+    static final int SIDE_REACH = 24 + 13; // SLOT + OFFHAND_GAP (declared below)
     /** Distance between stat icons: 9-px icons with 1 px of space (vanilla: 8). */
     static final int ICON_PITCH = 10;
     /** GUI width seen by the last hotbar draw; stat icons are drawn after it in the same frame. */
