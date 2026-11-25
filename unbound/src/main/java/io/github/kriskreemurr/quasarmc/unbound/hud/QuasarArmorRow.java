@@ -30,6 +30,9 @@ public final class QuasarArmorRow {
     private static final Identifier PROT_FULL = sprite("protect_full"), PROT_HALF = sprite("protect_half");
     private static final EquipmentSlot[] ARMOR = { EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET };
 
+    /** Extra lift for the armor row above the hearts (user tuned). */
+    static final int RAISE = 1;
+
     private QuasarArmorRow() {}
 
     /**
@@ -40,7 +43,7 @@ public final class QuasarArmorRow {
     public static void draw(GuiGraphicsExtractor g, Identifier vanillaSprite, int vanillaX, int y) {
         String path = vanillaSprite.getPath();
         int x = QuasarHotbar.respaceLeft(vanillaX) - 1;
-        int iy = y - 1;
+        int iy = y - 1 - RAISE;
         int index = QuasarHotbar.leftIconIndex(vanillaX);
         int prot = protectionPoints();
         boolean protFull = prot >= index * 2 + 2;
