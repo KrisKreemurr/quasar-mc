@@ -22,7 +22,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
  * Quasar's own hotbar: nine 24x24 tilted slots with 1 px gaps (224x24 strip),
  * a 26x26 selection frame, and the offhand drawn as one more slot.
  *
- * The hotbar is 2 px taller than vanilla's and sits 1 px off the bottom so the
+ * The hotbar is 2 px taller than vanilla's and sits BOTTOM_GAP px off the bottom so the
  * selection frame fits, so everything vanilla stacks above it (XP bar, hearts,
  * hunger, armor, air) is moved up by {@link #LIFT} pixels.
  */
@@ -31,8 +31,10 @@ public final class QuasarHotbar {
     private static final Identifier SELECTION = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/hotbar_selection");
 
     static final int SLOT = 24, PITCH = 25, WIDTH = 224, HEIGHT = 24;
+    /** Space between the hotbar and the bottom of the screen. */
+    static final int BOTTOM_GAP = 3;
     /** How far above vanilla's positions the XP bar and stat rows move. */
-    static final int LIFT = 3;
+    static final int LIFT = 5;
 
     private QuasarHotbar() {}
 
@@ -69,7 +71,7 @@ public final class QuasarHotbar {
         }
 
         int x = g.guiWidth() / 2 - WIDTH / 2;
-        int y = g.guiHeight() - HEIGHT - 1;
+        int y = g.guiHeight() - HEIGHT - BOTTOM_GAP;
         g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, x, y, WIDTH, HEIGHT);
         int sel = player.getInventory().getSelectedSlot();
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTION, x + sel * PITCH - 1, y - 1, SLOT + 2, SLOT + 2);
