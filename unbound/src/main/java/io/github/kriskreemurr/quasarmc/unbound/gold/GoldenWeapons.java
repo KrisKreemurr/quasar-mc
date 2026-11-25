@@ -24,7 +24,7 @@ import net.neoforged.neoforge.event.ModifyDefaultComponentsEvent;
  *   Golden axe:   7 -> 12 damage   (netherite 10)
  *   Golden spear: jab 1 -> 6       (netherite 5), charge multiplier 0.7x -> 1.4x (netherite 1.2x)
  *
- * Attack speed, durability, enchantability and repair stay vanilla.
+ * Attack speed, durability and enchantability stay vanilla; golden gear can't be repaired or mended (GoldenGear).
  * This changes the item's default components, so it applies to every golden
  * weapon (also ones already in a world, and ones mobs carry) and the tooltip
  * shows the new numbers.
