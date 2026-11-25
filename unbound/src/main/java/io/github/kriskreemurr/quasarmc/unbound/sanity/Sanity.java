@@ -88,8 +88,10 @@ public final class Sanity {
 
     private static void tick(ServerPlayer p) {
         if (p.isSpectator() || p.tickCount % 20 != 0) return;
-        float perMin = ratePerMinute(p);
         float v = get(p);
+        // pinned at full or empty: nothing changes, so report no rate (the dial's arrow stops)
+        float perMin = ratePerMinute(p);
+        if (pinned(v, perMin)) perMin = 0f;
         if (perMin != 0f) {
             float nv = Math.max(0f, Math.min(MAX, v + perMin / 60f));
             if (nv != v) p.setData(SANITY, nv);
@@ -100,6 +102,11 @@ public final class Sanity {
         Float lastRate = SENT_RATE.get(p);
         if (last == null || last != pixel(v) || lastRate == null || arrowTier(lastRate) != arrowTier(perMin)
                 || p.tickCount % RESEND_TICKS == 0) send(p);
+    }
+
+    /** True when sanity can't move in the rate's direction (rising at 100%, draining at 0%). */
+    public static boolean pinned(float value, float perMin) {
+        return (perMin > 0f && value >= MAX) || (perMin < 0f && value <= 0f);
     }
 
     /** The light rule for where the player's eyes are right now. */

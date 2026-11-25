@@ -32,5 +32,6 @@
   "quasarmc_quasium.options.page.meshelium": "Meshelium",
   "quasarmc_quasium.options.colored_light": "Colored Light",
   "quasarmc_quasium.options.colored_light.tooltip": "Light takes the color of its source: torches warm orange, soul torches blue, copper torches green, redstone red. Needs Quasar Meshelium. Off = plain light (for comparing performance or weaker GPUs).",
-  "quasarmc_quasium.options.page.portals": "Portals"
+  "quasarmc_quasium.options.page.portals": "Portals",
+  "key.quasarmc_quasium.f3_snapshot": "Copy F3 Snapshot"
 }

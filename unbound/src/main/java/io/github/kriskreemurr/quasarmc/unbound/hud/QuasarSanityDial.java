@@ -88,7 +88,9 @@ public final class QuasarSanityDial {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, BRAIN[stage], x, y, SIZE, SIZE);
 
         // Rate arrows (DST style): size = speed, pointing the way sanity is going, bobbing that way.
-        int tier = Sanity.arrowTier(SanityClientState.ratePerMinute);
+        // no arrow (and no bobbing) while the dial is pinned full or empty
+        float rate = SanityClientState.ratePerMinute;
+        int tier = Sanity.pinned(SanityClientState.value, rate) ? 0 : Sanity.arrowTier(rate);
         if (tier != 0) {
             boolean down = tier < 0;
             int bob = bobOffset(System.currentTimeMillis());
