@@ -120,6 +120,7 @@ public final class RoundLight {
 
     /** Called at the start of a section build. */
     public static void begin(SectionPos section, RenderSectionRegion region) {
+        ColorBridge.beginSection(region); // another world's section (portal view) must not publish colors here
         Work w = WORK.get();
         w.region = null;
         long seq = region instanceof ColorBridge.Snapshot snap ? snap.quasium$seq() : ColorBridge.nextSeq();

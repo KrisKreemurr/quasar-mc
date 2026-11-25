@@ -40,7 +40,7 @@ public final class ColorBridge {
      */
     static void submit(SectionPos section, int[] cells, long seq) {
         if (!looked) init();
-        if (isForeignCompile()) return; // another world's section (portal view): never mix into this world's colors
+        if (FOREIGN_SECTION.get() || isForeignCompile()) return; // another world's section (portal view): never mix into this world's colors
         ACCEPTED.compute(section.asLong(), (k, newest) -> {
             if (newest != null && newest > seq) return newest; // stale build finished late
             if (cells == null) CELLS.remove(k);
@@ -80,6 +80,25 @@ public final class ColorBridge {
 
     /** Quasar Meshelium's mark for threads that build another world's sections (Quasar portal views). */
     private static MethodHandle foreignCompile;
+    /** Quasar Meshelium's check of a build's block copy against the world the main renderer shows. */
+    private static MethodHandle foreignRegion;
+    /** Set at the start of each section build: true if its blocks come from another world. */
+    private static final ThreadLocal<Boolean> FOREIGN_SECTION = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    /** Called when a section build starts (before any submit for it). */
+    static void beginSection(Object region) {
+        if (!looked) init();
+        boolean foreign = false;
+        MethodHandle h = foreignRegion;
+        if (h != null) {
+            try {
+                foreign = (boolean) h.invokeExact(region);
+            } catch (Throwable t) {
+                foreignRegion = null;
+            }
+        }
+        FOREIGN_SECTION.set(foreign);
+    }
 
     /**
      * True on threads building sections of a background world (e.g. the Nether seen through a portal while you
@@ -104,6 +123,12 @@ public final class ColorBridge {
             Class<?> hook = Class.forName("com.deds.meshelium.quasar.QuasarPortalHook", true, ColorBridge.class.getClassLoader());
             foreignCompile = MethodHandles.publicLookup().findStatic(hook, "isForeignCompile",
                     MethodType.methodType(boolean.class));
+            try {
+                foreignRegion = MethodHandles.publicLookup().findStatic(hook, "isForeignRegion",
+                        MethodType.methodType(boolean.class, Object.class));
+            } catch (Throwable ignored) {
+                foreignRegion = null;
+            }
         } catch (Throwable ignored) {
             foreignCompile = null; // older Meshelium: no portal worlds to tell apart
         }
