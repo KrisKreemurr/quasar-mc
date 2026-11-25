@@ -40,6 +40,7 @@ public final class ColorBridge {
      */
     static void submit(SectionPos section, int[] cells, long seq) {
         if (!looked) init();
+        if (isForeignCompile()) return; // another world's section (portal view): never mix into this world's colors
         ACCEPTED.compute(section.asLong(), (k, newest) -> {
             if (newest != null && newest > seq) return newest; // stale build finished late
             if (cells == null) CELLS.remove(k);
@@ -77,8 +78,35 @@ public final class ColorBridge {
         }
     }
 
+    /** Quasar Meshelium's mark for threads that build another world's sections (Quasar portal views). */
+    private static MethodHandle foreignCompile;
+
+    /**
+     * True on threads building sections of a background world (e.g. the Nether seen through a portal while you
+     * are in the Overworld). The color table is keyed by section coordinates only, so such a section would
+     * overwrite this world's light at the same coordinates (black terrain around a portal whose far side has the
+     * same coordinates).
+     */
+    private static boolean isForeignCompile() {
+        MethodHandle h = foreignCompile;
+        if (h == null) return false;
+        try {
+            return (boolean) h.invokeExact();
+        } catch (Throwable t) {
+            foreignCompile = null;
+            return false;
+        }
+    }
+
     private static synchronized void init() {
         if (looked) return;
+        try {
+            Class<?> hook = Class.forName("com.deds.meshelium.quasar.QuasarPortalHook", true, ColorBridge.class.getClassLoader());
+            foreignCompile = MethodHandles.publicLookup().findStatic(hook, "isForeignCompile",
+                    MethodType.methodType(boolean.class));
+        } catch (Throwable ignored) {
+            foreignCompile = null; // older Meshelium: no portal worlds to tell apart
+        }
         try {
             Class<?> c = Class.forName("com.deds.meshelium.quasar.QuasarColorLight", true, ColorBridge.class.getClassLoader());
             submit = MethodHandles.publicLookup().findStatic(c, "submitSection",
