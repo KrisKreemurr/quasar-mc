@@ -94,7 +94,7 @@ public final class Sanity {
         ServerLevel level = p.level();
         BlockPos eyes = BlockPos.containing(p.getEyePosition());
         boolean hasSky = level.dimensionType().hasSkyLight();
-        boolean day = hasSky && Math.floorMod(level.getDayTime(), 24000L) < 12000L;
+        boolean day = hasSky && Math.floorMod(level.getDefaultClockTime(), 24000L) < 12000L;
         if (day && level.canSeeSky(eyes)) return DAY_PER_MIN;
         if (level.getMaxLocalRawBrightness(eyes) == 0) return DARK_PER_MIN;
         if (level.getBrightness(LightLayer.BLOCK, eyes) > 0) return 0f;
