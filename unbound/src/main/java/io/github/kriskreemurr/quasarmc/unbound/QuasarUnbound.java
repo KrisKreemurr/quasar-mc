@@ -4,10 +4,14 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenHoe;
+import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenTools;
 import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenWeapons;
+import io.github.kriskreemurr.quasarmc.unbound.hoe.HoeCombat;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Quasar Unbound: everything that adds to or changes the game itself
@@ -23,6 +27,9 @@ public class QuasarUnbound {
 
     public QuasarUnbound(IEventBus modEventBus, ModContainer modContainer) {
         GoldenWeapons.register(modEventBus);
+        GoldenTools.register(modEventBus);
+        GoldenHoe.register(NeoForge.EVENT_BUS);
+        HoeCombat.register(NeoForge.EVENT_BUS);
         LOGGER.info("Quasar Unbound loaded");
     }
 }

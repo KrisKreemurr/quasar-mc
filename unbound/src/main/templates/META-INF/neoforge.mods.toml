@@ -9,6 +9,8 @@ description='''
 ${mod_description}
 '''
 
+[[mixins]]
+    config="quasarmc_unbound.mixins.json"
 
 [[dependencies.${mod_id}]]
     modId="neoforge"

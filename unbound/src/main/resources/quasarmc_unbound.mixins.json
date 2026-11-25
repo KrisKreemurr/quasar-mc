@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.kriskreemurr.quasarmc.unbound.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "NoSwordKnockbackMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
