@@ -11,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
@@ -41,6 +42,11 @@ public final class QuasarHotbar {
 
     public static void register(RegisterGuiLayersEvent event) {
         event.wrapLayer(VanillaGuiLayers.HOTBAR, vanilla -> (g, dt) -> draw(g, dt, vanilla));
+    }
+
+    /** True when the offhand slot goes left of the hotbar (main hand set to Right). */
+    static boolean offhandOnLeft(Player player) {
+        return player.getMainArm() == HumanoidArm.RIGHT;
     }
 
     /** Top edge of the hotbar strip on screen. */
@@ -90,8 +96,9 @@ public final class QuasarHotbar {
 
         // Offhand slot is always shown (empty frame when nothing is held), one slot cut from the strip.
         ItemStack offhand = player.getOffhandItem();
-        // Always on the left: the right-hand spot belongs to the sanity dial.
-        int offX = x - SLOT - OFFHAND_GAP;
+        // Vanilla rule: offhand on the left for right-handed players, right for left-handed.
+        // The sanity dial takes the other side.
+        int offX = offhandOnLeft(player) ? x - SLOT - OFFHAND_GAP : x + WIDTH + OFFHAND_GAP;
         g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, WIDTH, HEIGHT, 0, 0, offX, y, SLOT, SLOT);
 
         int seed = 1;

@@ -15,8 +15,8 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
- * Sanity dial: a 26x26 orb one gap right of the hotbar (centred on the 24x24 spot that
- * mirrors the offhand). Layers: container, purple fill drained from the top, brain shadow, brain.
+ * Sanity dial: a 26x26 orb on the side of the hotbar opposite the offhand (centred on the
+ * 24x24 spot that mirrors it). Layers: container, purple fill drained from the top, brain shadow, brain.
  * Brain stage: full above 2/3, mid above 1/3, small below.
  *
  * There is no sanity system yet: the level comes from {@link #level}, set by the client
@@ -59,8 +59,11 @@ public final class QuasarSanityDial {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.player.isSpectator()) return;
 
-        // Mirror of the offhand spot, 1 px larger on every side.
-        int x = QuasarHotbar.left(g) + QuasarHotbar.WIDTH + QuasarHotbar.OFFHAND_GAP - 1;
+        // The side opposite the offhand, 1 px larger than a slot on every side.
+        int hx = QuasarHotbar.left(g);
+        int x = (QuasarHotbar.offhandOnLeft(mc.player)
+                ? hx + QuasarHotbar.WIDTH + QuasarHotbar.OFFHAND_GAP
+                : hx - QuasarHotbar.SLOT - QuasarHotbar.OFFHAND_GAP) - 1;
         int y = QuasarHotbar.top(g) - 1;
         g.blitSprite(RenderPipelines.GUI_TEXTURED, CONTAINER, x, y, SIZE, SIZE);
 
