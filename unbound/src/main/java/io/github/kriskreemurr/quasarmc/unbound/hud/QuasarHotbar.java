@@ -109,8 +109,9 @@ public final class QuasarHotbar {
         Minecraft mc = Minecraft.getInstance();
         Hud hud = mc.gui.hud;
         // Rows stacked above the hotbar (hearts, armor, food, air) start LIFT px higher.
-        hud.leftHeight += LIFT;
-        hud.rightHeight += LIFT;
+        int lift = LIFT + (QuasarXpBar.jumpBarStacked() ? QuasarXpBar.JUMP_ABOVE : 0);
+        hud.leftHeight += lift;
+        hud.rightHeight += lift;
 
         if (!(mc.getCameraEntity() instanceof Player player) || mc.gameMode == null || mc.player == null
                 || mc.player.isSpectator()) {
