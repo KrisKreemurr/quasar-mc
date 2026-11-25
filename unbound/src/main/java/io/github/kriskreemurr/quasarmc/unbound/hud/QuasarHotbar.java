@@ -78,6 +78,12 @@ public final class QuasarHotbar {
         return guiWidth / 2 - WIDTH / 2 + i * ICON_PITCH + (rel - i * 8);
     }
 
+    /** Index (0 = leftmost) of a left-side stat icon drawn by vanilla at {@code x}. */
+    public static int leftIconIndex(int x) {
+        if (guiWidth == 0) return 0;
+        return Math.floorMod(Math.floorDiv(x - (guiWidth / 2 - 91) + 4, 8), 10);
+    }
+
     /** New x for a right-side stat icon (food, air, mount hearts) drawn by vanilla at {@code x}. */
     public static int respaceRight(int x) {
         if (guiWidth == 0) return x;

@@ -4,7 +4,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+
+import io.github.kriskreemurr.quasarmc.unbound.hud.QuasarArmorRow;
 import io.github.kriskreemurr.quasarmc.unbound.hud.QuasarHotbar;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.Hud;
 
 /**
@@ -23,9 +30,11 @@ public abstract class HudIconSpacingMixin {
         return QuasarHotbar.respaceLeft(x);
     }
 
-    @ModifyArg(method = "extractArmor", at = @At(value = "INVOKE", target = BLIT), index = 2)
-    private static int quasar$armorX(int x) {
-        return QuasarHotbar.respaceLeft(x);
+    /** Armor icons: Quasar's shields plus Protection glint, at the respaced position. */
+    @WrapOperation(method = "extractArmor", at = @At(value = "INVOKE", target = BLIT))
+    private static void quasar$armorIcon(GuiGraphicsExtractor g, RenderPipeline pipeline, Identifier sprite,
+            int x, int y, int w, int h, Operation<Void> original) {
+        QuasarArmorRow.draw(g, sprite, x, y);
     }
 
     @ModifyArg(method = { "extractFood", "extractAirBubbles", "extractVehicleHealth" },
