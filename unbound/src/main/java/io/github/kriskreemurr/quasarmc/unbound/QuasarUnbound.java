@@ -8,6 +8,7 @@ import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenHoe;
 import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenTools;
 import io.github.kriskreemurr.quasarmc.unbound.gold.GoldenWeapons;
 import io.github.kriskreemurr.quasarmc.unbound.hoe.HoeCombat;
+import io.github.kriskreemurr.quasarmc.unbound.sanity.Sanity;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -30,6 +31,7 @@ public class QuasarUnbound {
         GoldenTools.register(modEventBus);
         GoldenHoe.register(NeoForge.EVENT_BUS);
         HoeCombat.register(NeoForge.EVENT_BUS);
+        Sanity.register(modEventBus);
         LOGGER.info("Quasar Unbound loaded");
     }
 }

@@ -7,9 +7,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /** Client-only side of Quasar Unbound (HUD). Never loads on a dedicated server. */
 @Mod(value = QuasarUnbound.MODID, dist = Dist.CLIENT)
@@ -23,7 +21,4 @@ public class QuasarUnboundClient {
         QuasarSanityDial.register(event);
     }
 
-    public QuasarUnboundClient() {
-        NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class, QuasarSanityDial::registerCommands);
-    }
 }

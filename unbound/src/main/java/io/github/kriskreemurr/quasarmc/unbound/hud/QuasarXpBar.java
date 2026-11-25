@@ -66,10 +66,10 @@ public final class QuasarXpBar {
         };
     }
 
-    /** True when the game mode shows XP (survival, adventure). */
+    /** True when the XP bar is shown: every mode but spectator (survival HUD stays on in creative). */
     static boolean hasXp() {
         Minecraft mc = Minecraft.getInstance();
-        return mc.gameMode != null && mc.gameMode.hasExperience();
+        return mc.player != null && !mc.player.isSpectator();
     }
 
     /** True while the jump bar is drawn above the XP bar, so the stat rows above must make room. */
