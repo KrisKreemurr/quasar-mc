@@ -56,10 +56,15 @@ public final class QuasarHotbar {
 
     /** Draws a vanilla layer {@link #LIFT} px higher. */
     static GuiLayer lifted(GuiLayer vanilla) {
+        return lifted(vanilla, LIFT);
+    }
+
+    /** Draws a vanilla layer {@code lift} px higher. */
+    static GuiLayer lifted(GuiLayer vanilla, int lift) {
         return (g, dt) -> {
             Matrix3x2fStack pose = g.pose();
             pose.pushMatrix();
-            pose.translate(0, -LIFT);
+            pose.translate(0, -lift);
             vanilla.render(g, dt);
             pose.popMatrix();
         };

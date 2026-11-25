@@ -18,8 +18,8 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
- * Quasar's wavy XP bar: 298x8 sprites (wave on rows 1-6, clear rows above and below),
- * centred on screen: spans offhand (24) + gap (13) + hotbar (224) + gap (13) + brain dial (24).
+ * Quasar's wavy XP bar: 302x8 sprites (user art, 10 px boxes) (wave on rows 1-6, clear rows above and below),
+ * centred on screen: spans offhand (24) + gap (13) + hotbar (224) + gap (13) + brain dial (24) = 298, plus 2 px each end.
  * Only replaces the bar while vanilla is showing XP; the locator and horse-jump bars
  * stay vanilla, lifted to sit above the taller hotbar.
  */
@@ -27,7 +27,9 @@ public final class QuasarXpBar {
     private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/experience_bar_background");
     private static final Identifier PROGRESS = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/experience_bar_progress");
 
-    static final int WIDTH = 298, HEIGHT = 8;
+    static final int WIDTH = 302, HEIGHT = 8;
+    /** Extra lift for the green level number so it clears the wavy bar. */
+    static final int LEVEL_EXTRA_LIFT = 2;
     /** Sprite top relative to the hotbar top: wave ends 3 px above it, clear of the selection frame. */
     static final int OFFSET = -9;
 
@@ -36,7 +38,7 @@ public final class QuasarXpBar {
     public static void register(RegisterGuiLayersEvent event) {
         event.wrapLayer(VanillaGuiLayers.CONTEXTUAL_INFO_BAR_BACKGROUND, v -> bar(v, true));
         event.wrapLayer(VanillaGuiLayers.CONTEXTUAL_INFO_BAR, v -> bar(v, false));
-        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_LEVEL, QuasarHotbar::lifted);
+        event.wrapLayer(VanillaGuiLayers.EXPERIENCE_LEVEL, v -> QuasarHotbar.lifted(v, QuasarHotbar.LIFT + LEVEL_EXTRA_LIFT));
     }
 
     private static GuiLayer bar(GuiLayer vanilla, boolean background) {
