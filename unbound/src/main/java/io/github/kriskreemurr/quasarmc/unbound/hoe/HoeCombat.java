@@ -1,5 +1,6 @@
 package io.github.kriskreemurr.quasarmc.unbound.hoe;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -25,7 +26,7 @@ public final class HoeCombat {
     private static final float FULL_SWING = 0.9F;
 
     // Attack strength is reset before the sweep check, so remember it from the start of the attack.
-    private static final Map<Player, Float> SWING_STRENGTH = new WeakHashMap<>();
+    private static final Map<Player, Float> SWING_STRENGTH = Collections.synchronizedMap(new WeakHashMap<>());
 
     private HoeCombat() {
     }
