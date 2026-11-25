@@ -1,6 +1,7 @@
 package io.github.kriskreemurr.quasarmc.unbound;
 
 import io.github.kriskreemurr.quasarmc.unbound.hud.QuasarHotbar;
+import io.github.kriskreemurr.quasarmc.unbound.hud.QuasarXpBar;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -15,5 +16,6 @@ public class QuasarUnboundClient {
     @SubscribeEvent
     static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
         QuasarHotbar.register(event);
+        QuasarXpBar.register(event);
     }
 }

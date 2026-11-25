@@ -22,9 +22,9 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
  * Quasar's own hotbar: nine 24x24 tilted slots with 1 px gaps (224x24 strip),
  * a 26x26 selection frame, and the offhand drawn as one more slot.
  *
- * The hotbar is 2 px taller than vanilla's and sits BOTTOM_GAP px off the bottom so the
- * selection frame fits, so everything vanilla stacks above it (XP bar, hearts,
- * hunger, armor, air) is moved up by {@link #LIFT} pixels.
+ * The hotbar is 2 px taller than vanilla's and sits BOTTOM_GAP px off the bottom,
+ * and the XP bar above it ({@link QuasarXpBar}) is 1 px taller, so everything vanilla
+ * stacks above them (XP level, hearts, hunger, armor, air) moves up by {@link #LIFT} px.
  */
 public final class QuasarHotbar {
     private static final Identifier HOTBAR = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/hotbar");
@@ -33,8 +33,8 @@ public final class QuasarHotbar {
     static final int SLOT = 24, PITCH = 25, WIDTH = 224, HEIGHT = 24;
     /** Space between the hotbar and the bottom of the screen. */
     static final int BOTTOM_GAP = 3;
-    /** How far above vanilla's positions the XP bar and stat rows move. */
-    static final int LIFT = 5;
+    /** How far above vanilla's positions the XP level number and stat rows move. */
+    static final int LIFT = 6;
     /** Gap between the hotbar and the offhand slot (half a slot plus 1). */
     static final int OFFHAND_GAP = 13;
 
@@ -42,14 +42,20 @@ public final class QuasarHotbar {
 
     public static void register(RegisterGuiLayersEvent event) {
         event.wrapLayer(VanillaGuiLayers.HOTBAR, vanilla -> (g, dt) -> draw(g, dt, vanilla));
-        for (Identifier id : new Identifier[] { VanillaGuiLayers.CONTEXTUAL_INFO_BAR_BACKGROUND,
-                VanillaGuiLayers.CONTEXTUAL_INFO_BAR, VanillaGuiLayers.EXPERIENCE_LEVEL }) {
-            event.wrapLayer(id, QuasarHotbar::lifted);
-        }
+    }
+
+    /** Top edge of the hotbar strip on screen. */
+    static int top(GuiGraphicsExtractor g) {
+        return g.guiHeight() - HEIGHT - BOTTOM_GAP;
+    }
+
+    /** Left edge of the hotbar strip on screen. */
+    static int left(GuiGraphicsExtractor g) {
+        return g.guiWidth() / 2 - WIDTH / 2;
     }
 
     /** Draws a vanilla layer {@link #LIFT} px higher. */
-    private static GuiLayer lifted(GuiLayer vanilla) {
+    static GuiLayer lifted(GuiLayer vanilla) {
         return (g, dt) -> {
             Matrix3x2fStack pose = g.pose();
             pose.pushMatrix();
@@ -72,8 +78,8 @@ public final class QuasarHotbar {
             return;
         }
 
-        int x = g.guiWidth() / 2 - WIDTH / 2;
-        int y = g.guiHeight() - HEIGHT - BOTTOM_GAP;
+        int x = left(g);
+        int y = top(g);
         g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, x, y, WIDTH, HEIGHT);
         int sel = player.getInventory().getSelectedSlot();
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTION, x + sel * PITCH - 1, y - 1, SLOT + 2, SLOT + 2);
