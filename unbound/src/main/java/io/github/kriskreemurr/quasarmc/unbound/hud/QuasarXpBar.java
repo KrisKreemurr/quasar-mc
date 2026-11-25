@@ -18,8 +18,8 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
- * Quasar's wavy XP bar: 262x8 sprites (wave on rows 1-6, clear rows above and below),
- * starting at the hotbar's left edge and running past it to where the brain dial goes.
+ * Quasar's wavy XP bar: 298x8 sprites (wave on rows 1-6, clear rows above and below),
+ * centred on screen: spans offhand (24) + gap (13) + hotbar (224) + gap (13) + brain dial (24).
  * Only replaces the bar while vanilla is showing XP; the locator and horse-jump bars
  * stay vanilla, lifted to sit above the taller hotbar.
  */
@@ -27,7 +27,7 @@ public final class QuasarXpBar {
     private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/experience_bar_background");
     private static final Identifier PROGRESS = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "hud/experience_bar_progress");
 
-    static final int WIDTH = 262, HEIGHT = 8;
+    static final int WIDTH = 298, HEIGHT = 8;
     /** Sprite top relative to the hotbar top: wave ends 3 px above it, clear of the selection frame. */
     static final int OFFSET = -9;
 
@@ -50,7 +50,7 @@ public final class QuasarXpBar {
     private static void draw(GuiGraphicsExtractor g, boolean background) {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p == null || p.getXpNeededForNextLevel() <= 0) return;
-        int x = QuasarHotbar.left(g);
+        int x = g.guiWidth() / 2 - WIDTH / 2;
         int y = QuasarHotbar.top(g) + OFFSET;
         if (background) {
             g.blitSprite(RenderPipelines.GUI_TEXTURED, BACKGROUND, x, y, WIDTH, HEIGHT);
