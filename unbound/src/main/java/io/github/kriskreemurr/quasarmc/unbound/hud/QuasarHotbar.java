@@ -89,20 +89,17 @@ public final class QuasarHotbar {
         int sel = player.getInventory().getSelectedSlot();
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTION, x + sel * PITCH - 1, y - 1, SLOT + 2, SLOT + 2);
 
+        // Offhand slot is always shown (empty frame when nothing is held), one slot cut from the strip.
         ItemStack offhand = player.getOffhandItem();
-        int offX = Integer.MIN_VALUE;
-        if (!offhand.isEmpty()) {
-            boolean leftSide = player.getMainArm() == HumanoidArm.RIGHT;
-            offX = leftSide ? x - SLOT - OFFHAND_GAP : x + WIDTH + OFFHAND_GAP;
-            // One slot cut from the hotbar strip.
-            g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, WIDTH, HEIGHT, 0, 0, offX, y, SLOT, SLOT);
-        }
+        boolean leftSide = player.getMainArm() == HumanoidArm.RIGHT;
+        int offX = leftSide ? x - SLOT - OFFHAND_GAP : x + WIDTH + OFFHAND_GAP;
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, WIDTH, HEIGHT, 0, 0, offX, y, SLOT, SLOT);
 
         int seed = 1;
         for (int i = 0; i < 9; i++) {
             slot(g, dt, player, player.getInventory().getItem(i), x + i * PITCH + 4, y + 4, seed++);
         }
-        if (offX != Integer.MIN_VALUE) slot(g, dt, player, offhand, offX + 4, y + 4, seed);
+        slot(g, dt, player, offhand, offX + 4, y + 4, seed);
     }
 
     private static Method vanillaSlot;
