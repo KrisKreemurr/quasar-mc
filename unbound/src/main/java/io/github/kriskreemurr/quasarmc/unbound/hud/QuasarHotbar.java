@@ -35,6 +35,8 @@ public final class QuasarHotbar {
     static final int BOTTOM_GAP = 3;
     /** How far above vanilla's positions the XP bar and stat rows move. */
     static final int LIFT = 5;
+    /** Gap between the hotbar and the offhand slot (half a slot plus 1). */
+    static final int OFFHAND_GAP = 13;
 
     private QuasarHotbar() {}
 
@@ -80,7 +82,7 @@ public final class QuasarHotbar {
         int offX = Integer.MIN_VALUE;
         if (!offhand.isEmpty()) {
             boolean leftSide = player.getMainArm() == HumanoidArm.RIGHT;
-            offX = leftSide ? x - PITCH : x + WIDTH + 1;
+            offX = leftSide ? x - SLOT - OFFHAND_GAP : x + WIDTH + OFFHAND_GAP;
             // One slot cut from the hotbar strip.
             g.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR, WIDTH, HEIGHT, 0, 0, offX, y, SLOT, SLOT);
         }
