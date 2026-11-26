@@ -66,7 +66,11 @@ $sources = @(
     # Immersive Portals fork (Apache-2.0): seamless portals, 26.3 port (renderer replaced by Quasar MC's)
     @{ Repo = "KrisKreemurr/quasar-immersiveportals"; Branch = "quasar/26.3"; Artifact = "quasar-immersiveportals-26.3";
        Take = @("QuasarImmersivePortals-*.jar");
-       Remove = @("QuasarImmersivePortals*.jar", "immersive_portals*.jar", "immersive-portals*.jar", "imm_ptl*.jar") }
+       Remove = @("QuasarImmersivePortals*.jar", "immersive_portals*.jar", "immersive-portals*.jar", "imm_ptl*.jar") },
+    # Diorama fork (MIT): 3D minimap/world map, Quasar performance fixes (later: GPS gate)
+    @{ Repo = "KrisKreemurr/quasar-diorama"; Branch = "quasar/26.3"; Artifact = "quasar-diorama-26.3";
+       Take = @("QuasarDiorama-*.jar");
+       Remove = @("QuasarDiorama*.jar", "diorama-*.jar") }
 )
 
 $temp = Join-Path $env:TEMP "quasar-mods-update"
