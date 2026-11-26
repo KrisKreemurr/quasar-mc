@@ -19,6 +19,17 @@ public class QuasarUnboundClient {
         QuasarHotbar.register(event);
         QuasarXpBar.register(event);
         QuasarSanityDial.register(event);
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.registerHud(event);
+    }
+
+    @SubscribeEvent
+    static void onRegisterRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.registerRenderers(event);
+    }
+
+    @SubscribeEvent
+    static void onUseKey(net.neoforged.neoforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.onUse(event);
     }
 
 }

@@ -1,0 +1,65 @@
+package io.github.kriskreemurr.quasarmc.unbound.boomerang.client;
+
+import io.github.kriskreemurr.quasarmc.unbound.QuasarUnbound;
+import io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangCatchPayload;
+import io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangEntity;
+import io.github.kriskreemurr.quasarmc.unbound.boomerang.Boomerangs;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+
+/** Client side: the spinning renderer, catching with an empty hand, and the "Catch!" prompt. */
+public final class BoomerangClient {
+    private BoomerangClient() {}
+
+    public static void registerRenderers(EntityRenderersEvent.RegisterRenderers e) {
+        e.registerEntityRenderer(Boomerangs.ENTITY.get(), BoomerangRenderer::new);
+    }
+
+    public static void registerHud(RegisterGuiLayersEvent e) {
+        e.registerAbove(VanillaGuiLayers.CROSSHAIR, Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "boomerang_catch"),
+            BoomerangClient::drawPrompt);
+    }
+
+    /** your boomerang with its catch window open, or null */
+    static BoomerangEntity catchable() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return null;
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (e instanceof BoomerangEntity b && b.catchWindow() && b.getOwner() == mc.player) return b;
+        }
+        return null;
+    }
+
+    /**
+     * Right-click while your boomerang can be caught: catch it with an empty hand (main first, then offhand) instead
+     * of using whatever else you hold. No empty hand: nothing special (it will hit you).
+     */
+    public static void onUse(InputEvent.InteractionKeyMappingTriggered e) {
+        if (!e.isUseItem() || catchable() == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        InteractionHand hand = mc.player.getMainHandItem().isEmpty() ? InteractionHand.MAIN_HAND
+            : mc.player.getOffhandItem().isEmpty() ? InteractionHand.OFF_HAND : null;
+        if (hand == null) return;
+        ClientPacketDistributor.sendToServer(new BoomerangCatchPayload(hand == InteractionHand.OFF_HAND));
+        e.setSwingHand(true);
+        e.setCanceled(true);
+    }
+
+    private static void drawPrompt(GuiGraphicsExtractor g, DeltaTracker dt) {
+        if (catchable() == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        boolean hasEmptyHand = mc.player.getMainHandItem().isEmpty() || mc.player.getOffhandItem().isEmpty();
+        String text = hasEmptyHand ? "Catch!" : "Catch! (empty a hand)";
+        int x = g.guiWidth() / 2, y = g.guiHeight() / 2 + 12;
+        g.centeredText(mc.font, text, x, y, hasEmptyHand ? 0xFFFFE070 : 0xFFFF7060);
+    }
+}

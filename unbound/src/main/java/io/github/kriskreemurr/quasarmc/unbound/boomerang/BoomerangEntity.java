@@ -1,0 +1,271 @@
+package io.github.kriskreemurr.quasarmc.unbound.boomerang;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ItemSupplier;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * A thrown boomerang. Flight (server side; the client only interpolates and spins):
+ * <ol>
+ * <li>OUT: straight out of the throwing hand, curving toward that hand's side. A hit on anything (mob or block) or
+ *     the end of its range ends it.</li>
+ * <li>POP: a short upward arc.</li>
+ * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
+ *     away it dings, and from the ding it arrives no sooner than 1 s later (it slows down or lingers): the catch
+ *     window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
+ *     own damage and drops at your feet.</li>
+ * </ol>
+ * Normal boomerangs hit one target, on the way out. Golden ones also hit on the way back (each target once).
+ */
+public class BoomerangEntity extends Projectile implements ItemSupplier {
+    static final EntityDataAccessor<ItemStack> ITEM = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.ITEM_STACK);
+    /** catch window open (dinged, not arrived): drives the client's catch check and HUD prompt */
+    static final EntityDataAccessor<Boolean> WINDOW = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final int OUT = 0, POP = 1, RETURN = 2;
+    /** blocks per tick: out 1.2 (24/s), back 0.75 (15/s) */
+    private static final double OUT_SPEED = 1.2, RETURN_SPEED = 0.75;
+    /** about 16 blocks out */
+    private static final int OUT_TICKS = 14, POP_TICKS = 6;
+    /** horizontal turn per tick toward the throwing hand's side, degrees */
+    private static final double CURVE_DEG = 2.5;
+    /** the catch window: ding to arrival, at least this many ticks */
+    private static final int CATCH_TICKS = 20;
+    /** given up on (owner gone or too far): dropped where it is */
+    private static final double MAX_OWNER_DIST = 64;
+
+    private int phase = OUT, phaseTicks, dingTick = -1;
+    private float damage = 5f;
+    private boolean hitsOnReturn;
+    /** +1 curve right, -1 curve left */
+    private int side = 1;
+    private InteractionHand hand = InteractionHand.MAIN_HAND;
+    private final Set<Integer> hitOnReturn = new HashSet<>();
+
+    public BoomerangEntity(EntityType<? extends BoomerangEntity> type, Level level) {
+        super(type, level);
+    }
+
+    static BoomerangEntity thrown(ServerLevel level, Player owner, ItemStack stack, InteractionHand hand, BoomerangTier tier) {
+        BoomerangEntity e = new BoomerangEntity(Boomerangs.ENTITY.get(), level);
+        e.setOwner(owner);
+        e.setItem(stack);
+        e.hand = hand;
+        e.damage = tier.damage;
+        e.hitsOnReturn = tier.hitsOnReturn;
+        HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? owner.getMainArm() : owner.getMainArm().getOpposite();
+        e.side = arm == HumanoidArm.RIGHT ? 1 : -1;
+        Vec3 look = owner.getLookAngle();
+        Vec3 right = look.cross(new Vec3(0, 1, 0));
+        if (right.lengthSqr() < 1e-6) right = new Vec3(1, 0, 0);
+        right = right.normalize();
+        // out of the throwing hand: a little to that side and below the eyes
+        Vec3 start = owner.getEyePosition().add(right.scale(0.35 * e.side)).add(0, -0.25, 0).add(look.scale(0.3));
+        e.setPos(start.x, start.y, start.z);
+        e.setDeltaMovement(look.scale(OUT_SPEED));
+        return e;
+    }
+
+    /** this player's boomerang currently in flight in this level, or null (one at a time) */
+    static BoomerangEntity inFlightFor(Level level, Player player) {
+        for (BoomerangEntity e : level.getEntitiesOfClass(BoomerangEntity.class, player.getBoundingBox().inflate(MAX_OWNER_DIST))) {
+            if (!e.isRemoved() && e.getOwner() == player) return e;
+        }
+        return null;
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(ITEM, ItemStack.EMPTY);
+        builder.define(WINDOW, false);
+    }
+
+    @Override
+    public ItemStack getItem() {
+        return entityData.get(ITEM);
+    }
+
+    void setItem(ItemStack stack) {
+        entityData.set(ITEM, stack.copy());
+    }
+
+    public boolean catchWindow() {
+        return entityData.get(WINDOW);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level().isClientSide()) return; // position comes from the server; the renderer spins it
+        ServerLevel level = (ServerLevel) level();
+        Entity ownerEntity = getOwner();
+        if (!(ownerEntity instanceof Player owner) || !owner.isAlive() || owner.level() != level
+                || owner.distanceToSqr(this) > MAX_OWNER_DIST * MAX_OWNER_DIST) {
+            dropHere();
+            return;
+        }
+        phaseTicks++;
+        Vec3 pos = position();
+        Vec3 vel = getDeltaMovement();
+        switch (phase) {
+            case OUT -> {
+                // curve toward the throwing hand's side (horizontal turn)
+                double a = Math.toRadians(CURVE_DEG) * -side;
+                double cos = Math.cos(a), sin = Math.sin(a);
+                vel = new Vec3(vel.x * cos - vel.z * sin, vel.y, vel.x * sin + vel.z * cos);
+                Vec3 next = pos.add(vel);
+                HitResult hit = hitAlong(pos, next, true);
+                if (hit != null) {
+                    if (hit instanceof EntityHitResult eh) strike(level, owner, eh.getEntity());
+                    else level.playSound(null, getX(), getY(), getZ(), SoundEvents.TRIDENT_HIT_GROUND, SoundSource.PLAYERS, 0.6f, 1.4f);
+                    setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
+                    startPop(vel);
+                }
+                else {
+                    move(next, vel);
+                    if (phaseTicks >= OUT_TICKS) startPop(vel);
+                }
+            }
+            case POP -> {
+                vel = vel.multiply(0.6, 1, 0.6).add(0, -0.06, 0);
+                move(pos.add(vel), vel);
+                if (phaseTicks >= POP_TICKS) {
+                    phase = RETURN;
+                    phaseTicks = 0;
+                    noPhysics = true;
+                }
+            }
+            default -> {
+                Vec3 target = owner.getEyePosition().add(0, -0.3, 0);
+                Vec3 to = target.subtract(pos);
+                double dist = to.length();
+                if (dingTick < 0 && dist / RETURN_SPEED <= CATCH_TICKS) {
+                    dingTick = tickCount;
+                    entityData.set(WINDOW, true);
+                    level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), SoundEvents.NOTE_BLOCK_BELL.value(),
+                        SoundSource.PLAYERS, 0.9f, 1.8f);
+                }
+                double speed = RETURN_SPEED;
+                if (dingTick >= 0) {
+                    // arrive no sooner than CATCH_TICKS after the ding: slow down or linger
+                    int left = Math.max(1, CATCH_TICKS - (tickCount - dingTick));
+                    speed = Math.min(RETURN_SPEED, dist / left);
+                }
+                if (dist < 0.6 && dingTick >= 0 && tickCount - dingTick >= CATCH_TICKS) {
+                    missedCatch(level, owner);
+                    return;
+                }
+                Vec3 step = dist < 1e-6 ? Vec3.ZERO : to.scale(Math.min(speed, dist) / dist);
+                if (hitsOnReturn) {
+                    HitResult hit = hitAlong(pos, pos.add(step), false);
+                    if (hit instanceof EntityHitResult eh && hitOnReturn.add(eh.getEntity().getId())) {
+                        strike(level, owner, eh.getEntity());
+                    }
+                }
+                move(pos.add(step), step);
+            }
+        }
+    }
+
+    private void startPop(Vec3 vel) {
+        phase = POP;
+        phaseTicks = 0;
+        setDeltaMovement(vel.multiply(0.3, 0, 0.3).add(0, 0.35, 0));
+    }
+
+    private void move(Vec3 next, Vec3 vel) {
+        setDeltaMovement(vel);
+        setPos(next.x, next.y, next.z);
+    }
+
+    /** the first block (if blocks count) or entity hit between a and b */
+    private HitResult hitAlong(Vec3 a, Vec3 b, boolean blocks) {
+        Vec3 end = b;
+        BlockHitResult bh = null;
+        if (blocks) {
+            bh = level().clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+            if (bh.getType() != HitResult.Type.MISS) end = bh.getLocation();
+            else bh = null;
+        }
+        AABB sweep = getBoundingBox().expandTowards(end.subtract(a)).inflate(1.0);
+        EntityHitResult eh = ProjectileUtil.getEntityHitResult(level(), this, a, end, sweep, this::canHitEntity);
+        if (eh != null) return eh;
+        return bh;
+    }
+
+    @Override
+    protected boolean canHitEntity(Entity target) {
+        return target != getOwner() && target.isPickable() && !target.isSpectator() && target.isAlive()
+            && !(target instanceof BoomerangEntity);
+    }
+
+    private void strike(ServerLevel level, Player owner, Entity target) {
+        target.hurtServer(level, damageSources().thrown(this, owner), damage);
+        level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.8f, 1.3f);
+    }
+
+    /** caught with an empty hand (server, from the catch payload) */
+    boolean tryCatch(Player player, InteractionHand with) {
+        if (player != getOwner() || !catchWindow() || isRemoved() || !player.getItemInHand(with).isEmpty()) return false;
+        player.setItemInHand(with, getItem().copy());
+        level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.7f, 1.1f);
+        discard();
+        return true;
+    }
+
+    private void missedCatch(ServerLevel level, Player owner) {
+        owner.hurtServer(level, damageSources().thrown(this, owner), damage);
+        owner.spawnAtLocation(level, getItem().copy());
+        discard();
+    }
+
+    private void dropHere() {
+        if (level() instanceof ServerLevel level && !getItem().isEmpty()) spawnAtLocation(level, getItem().copy());
+        discard();
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput out) {
+        super.addAdditionalSaveData(out);
+        out.store("Item", ItemStack.OPTIONAL_CODEC, getItem());
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput in) {
+        super.readAdditionalSaveData(in);
+        in.read("Item", ItemStack.OPTIONAL_CODEC).ifPresent(this::setItem);
+        // a boomerang loaded from disk just comes home
+        phase = RETURN;
+        noPhysics = true;
+    }
+
+    @Override
+    public boolean shouldRenderAtSqrDistance(double d) {
+        return d < 64 * 64;
+    }
+}

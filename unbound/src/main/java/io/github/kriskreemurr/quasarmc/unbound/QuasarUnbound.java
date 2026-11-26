@@ -33,6 +33,7 @@ public class QuasarUnbound {
         GoldenHoe.register(NeoForge.EVENT_BUS);
         HoeCombat.register(NeoForge.EVENT_BUS);
         Sanity.register(modEventBus);
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.Boomerangs.register(modEventBus);
         LOGGER.info("Quasar Unbound loaded");
     }
 }
