@@ -28,8 +28,8 @@ public final class QuasarSanityDial {
     private static final Identifier[] BRAIN = { sprite("brain_small"), sprite("brain_mid"), sprite("brain_full") };
     private static final Identifier[] SHADOW = { sprite("brain_small_shadow"), sprite("brain_mid_shadow"), sprite("brain_full_shadow") };
 
-    private static final Identifier[] ARROW_DOWN = { sprite("arrow_small_down"), sprite("arrow_medium_down"), sprite("arrow_big_down") };
-    private static final Identifier[] ARROW_UP = { sprite("arrow_small_up"), sprite("arrow_medium_up"), sprite("arrow_big_up") };
+    private static final Identifier[] ARROW_DOWN = { sprite("arrow_tiny_down"), sprite("arrow_small_down"), sprite("arrow_medium_down"), sprite("arrow_big_down") };
+    private static final Identifier[] ARROW_UP = { sprite("arrow_tiny_up"), sprite("arrow_small_up"), sprite("arrow_medium_up"), sprite("arrow_big_up") };
     /** Arrow bob: 3 px in the arrow's direction, back, 3 px the other way, back, once per period. */
     static final int BOB_PX = 3;
     static final long BOB_PERIOD_MS = 1200L;

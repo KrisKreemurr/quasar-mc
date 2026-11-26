@@ -32,18 +32,20 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
 /**
  * Sanity, v1: light only. Server-side, once a second per player:
  * <ul>
- * <li>Daylight (dimension with a sky, daytime, sky visible from the eyes): +4/min</li>
- * <li>Pure darkness (light level 0, same as mob spawning): -12.5/min (full to empty in 8 min)</li>
+ * <li>Daylight (dimension with a sky, daytime, sky visible from the eyes): +1/min (tiny arrow)</li>
+ * <li>Pure darkness (light level 0, same as mob spawning): -4/min (small arrow; full to empty in 25 min)</li>
  * <li>Holding a light-giving block in either hand: 0 (a carried torch cancels darkness and night)</li>
  * <li>Lit by a light source (block light 1+): 0 (safe, not healing)</li>
- * <li>Otherwise lit only by the sky: daytime 0 (indoors/shade), not daytime -4/min</li>
+ * <li>Otherwise lit only by the sky: daytime 0 (indoors/shade), not daytime -1/min (tiny arrow)</li>
  * </ul>
  * "Daytime" is day ticks 0..11999 of 24000, so sunset and sunrise count as night: a full day
- * outside with no light is exactly even (+40 / -40). Saved with the player; resets on death.
+ * outside with no light is exactly even (+10 / -10). Nights outside and days indoors lose 10 a day:
+ * about 10 days from full to empty (DST's "safe Wilson lasts 8+ days"). Saved with the player;
+ * resets on death.
  */
 public final class Sanity {
     public static final float MAX = 100f;
-    static final float DAY_PER_MIN = 4f, NIGHT_PER_MIN = -4f, DARK_PER_MIN = -12.5f;
+    static final float DAY_PER_MIN = 1f, NIGHT_PER_MIN = -1f, DARK_PER_MIN = -4f;
 
     private static final DeferredRegister<AttachmentType<?>> ATTACHMENTS =
             DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, QuasarUnbound.MODID);
@@ -123,12 +125,13 @@ public final class Sanity {
     }
 
     /**
-     * Arrow tier for a rate: 0 none, 1 slow (up to 5/min), 2 medium (up to 15/min), 3 fast. Negative
-     * for draining. Daylight/night are slow, darkness is medium, fast is kept for things like monsters.
+     * Arrow tier for a rate: 0 none, 1 tiny (up to 2/min), 2 small (up to 6/min), 3 medium (up to 15/min),
+     * 4 big. Negative for draining. Day/night are tiny, darkness is small; medium and big are kept for
+     * things like monsters and the horror realm.
      */
     public static int arrowTier(float perMin) {
         float a = Math.abs(perMin);
-        int t = a == 0f ? 0 : a <= 5f ? 1 : a <= 15f ? 2 : 3;
+        int t = a == 0f ? 0 : a <= 2f ? 1 : a <= 6f ? 2 : a <= 15f ? 3 : 4;
         return perMin < 0 ? -t : t;
     }
 
