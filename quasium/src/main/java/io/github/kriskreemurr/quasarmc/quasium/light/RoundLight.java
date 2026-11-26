@@ -178,11 +178,13 @@ public final class RoundLight {
         if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return "Round light: off";
         long now = System.nanoTime();
         if (now - windowStart >= 1_000_000_000L) {
+            // per second over the real window: F3 may have been closed for a while (counts kept adding up)
+            double secs = (now - windowStart) / 1e9;
             windowStart = now;
             long b = built.getAndSet(0), l = lit.getAndSet(0), n = nanos.getAndSet(0), mx = maxNanos.getAndSet(0);
             shown = b == 0 ? "Round light: idle"
                     : String.format("Round light: %d builds/s (%d lit), %.2f ms avg, %.2f ms per lit, max %.2f ms",
-                    b, l, n / 1e6 / b, l == 0 ? 0.0 : n / 1e6 / l, mx / 1e6);
+                    Math.round(b / secs), Math.round(l / secs), n / 1e6 / b, l == 0 ? 0.0 : n / 1e6 / l, mx / 1e6);
         }
         return shown;
     }
