@@ -199,6 +199,9 @@ public final class RoundLight {
         // 1) find light sources that can reach the target box
         boolean any = false;
         w.seedCount = 0;
+        // block info cache, shared by the seed scan (buried check) and the three channels
+        Arrays.fill(w.flag, UNKNOWN);
+        Arrays.fill(w.state, null);
         if (QuasiumConfig.roundLight) for (int sy = 0; sy < 3; sy++) {
             for (int sz = 0; sz < 3; sz++) {
                 for (int sx = 0; sx < 3; sx++) {
@@ -220,6 +223,9 @@ public final class RoundLight {
                                 int ey = Math.max(0, Math.max(tMin - y, y - tMax));
                                 int ez = Math.max(0, Math.max(tMin - z, z - tMax));
                                 if (ex * ex + ey * ey + ez * ez >= emission * emission) continue;
+                                // lava seas / glowstone blobs: a source walled in by rock or by the same light
+                                // adds nothing visible; only its surface seeds (volume -> surface)
+                                if (buried(w, region, x, y, z, s)) continue;
                                 w.addSeed((y * N + z) * N + x, Math.min(MAX, emission * 16), LightColors.of(s.getBlock()));
                                 any = true;
                             }
@@ -240,9 +246,7 @@ public final class RoundLight {
             any = true;
         }
         if (!any) return false;
-        // block info is shared by the three channels; each channel spreads on its own
-        Arrays.fill(w.flag, UNKNOWN);
-        Arrays.fill(w.state, null);
+        // each channel spreads on its own (block info cache was reset before the seed scan)
         Arrays.fill(w.bright, (short) 0);
         for (int c = 0; c < 3; c++) {
             w.value = w.valueC[c];
@@ -389,6 +393,25 @@ public final class RoundLight {
         flag(w, region, idx);
         return w.state[idx];
     }
+
+    /**
+     * True if every neighbour of this light source is opaque or the same block glowing at least as bright, so no
+     * light from it reaches an open cell its neighbours don't already light. Sources on the region's edge count as
+     * open. Buried cells then read one step less than full (only faces hidden under the same block sample them).
+     */
+    private static boolean buried(Work w, RenderSectionRegion region, int x, int y, int z, BlockState self) {
+        if (x <= 0 || y <= 0 || z <= 0 || x >= N - 1 || y >= N - 1 || z >= N - 1) return false;
+        int emission = self.getLightEmission();
+        for (int[] o : FACES) {
+            int nIdx = ((y + o[1]) * N + (z + o[2])) * N + (x + o[0]);
+            if (flag(w, region, nIdx) == OPAQUE) continue;
+            BlockState n = w.state[nIdx];
+            if (n.getBlock() != self.getBlock() || n.getLightEmission() < emission) return false;
+        }
+        return true;
+    }
+
+    private static final int[][] FACES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
     private static byte flag(Work w, RenderSectionRegion region, int idx) {
         byte f = w.flag[idx];
