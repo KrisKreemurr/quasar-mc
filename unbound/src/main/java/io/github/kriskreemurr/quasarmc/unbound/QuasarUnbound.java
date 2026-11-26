@@ -29,6 +29,7 @@ public class QuasarUnbound {
     public QuasarUnbound(IEventBus modEventBus, ModContainer modContainer) {
         GoldenWeapons.register(modEventBus);
         GoldenTools.register(modEventBus);
+        io.github.kriskreemurr.quasarmc.unbound.gold.FlintAndGold.register(modEventBus);
         GoldenHoe.register(NeoForge.EVENT_BUS);
         HoeCombat.register(NeoForge.EVENT_BUS);
         Sanity.register(modEventBus);

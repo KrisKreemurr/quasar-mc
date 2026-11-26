@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": ["minecraft:gold_ingot", "minecraft:flint"],
+  "result": { "id": "quasarmc_unbound:flint_and_gold" }
+}

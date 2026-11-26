@@ -18,6 +18,7 @@ public final class GoldenGear {
 
     public static boolean is(ItemStack stack) {
         return stack.is(Items.GOLDEN_SWORD) || stack.is(Items.GOLDEN_AXE) || stack.is(Items.GOLDEN_PICKAXE)
-                || stack.is(Items.GOLDEN_SHOVEL) || stack.is(Items.GOLDEN_HOE) || stack.is(Items.GOLDEN_SPEAR);
+                || stack.is(Items.GOLDEN_SHOVEL) || stack.is(Items.GOLDEN_HOE) || stack.is(Items.GOLDEN_SPEAR)
+                || stack.is(FlintAndGold.ITEM.get());
     }
 }
