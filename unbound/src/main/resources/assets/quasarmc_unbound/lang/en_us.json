@@ -1,3 +1,11 @@
 {
-  "item.quasarmc_unbound.flint_and_gold": "Flint and Gold"
+  "item.quasarmc_unbound.flint_and_gold": "Flint and Gold",
+  "item.quasarmc_unbound.wooden_boomerang": "Wooden Boomerang",
+  "item.quasarmc_unbound.stone_boomerang": "Stone Boomerang",
+  "item.quasarmc_unbound.copper_boomerang": "Copper Boomerang",
+  "item.quasarmc_unbound.iron_boomerang": "Iron Boomerang",
+  "item.quasarmc_unbound.diamond_boomerang": "Diamond Boomerang",
+  "item.quasarmc_unbound.netherite_boomerang": "Netherite Boomerang",
+  "item.quasarmc_unbound.golden_boomerang": "Golden Boomerang",
+  "entity.quasarmc_unbound.boomerang": "Boomerang"
 }
