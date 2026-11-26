@@ -248,25 +248,28 @@ public final class RoundLight {
         if (!any) return false;
         // each channel spreads on its own (block info cache was reset before the seed scan)
         Arrays.fill(w.bright, (short) 0);
-        for (int c = 0; c < 3; c++) {
-            w.value = w.valueC[c];
-            w.src = w.srcC[c];
-            w.srcValue = w.srcValueC[c];
-            Arrays.fill(w.value, (short) 0);
-            Arrays.fill(w.src, -1);
-            Arrays.fill(w.bucketSize, 0);
-            boolean seeded = false;
-            for (int i = 0; i < w.seedCount; i++) {
-                int idx = w.seedIdx[i];
-                int v = Math.round(w.seedV[i] * w.seedColor[i][c]);
-                if (v <= 0 || v <= w.value[idx]) continue;
-                w.value[idx] = (short) v;
-                w.src[idx] = idx;
-                w.srcValue[idx] = (short) v;
-                w.push(v, idx);
-                seeded = true;
+        // One light color for every seed (a lava sea, a glowstone blob, one torch type): spread only the strongest
+        // channel and scale the other two from it, a third of the work. Light then keeps its hue with distance
+        // instead of the weaker channels dying out first (a slightly truer color, not a visible change).
+        float[] mono = w.seedColor[0];
+        for (int i = 1; i < w.seedCount && mono != null; i++) if (w.seedColor[i] != mono) mono = null;
+        if (mono != null) {
+            int dom = mono[0] >= mono[1] ? (mono[0] >= mono[2] ? 0 : 2) : (mono[1] >= mono[2] ? 1 : 2);
+            if (mono[dom] > 0f) {
+                spreadChannel(w, region, dom);
+                short[] dv = w.valueC[dom], br = w.bright;
+                for (int c = 0; c < 3; c++) {
+                    if (c == dom) continue;
+                    short[] cv = w.valueC[c];
+                    float k = mono[c] / mono[dom];
+                    for (int i = 0; i < dv.length; i++) cv[i] = (short) Math.round(dv[i] * k);
+                }
+                System.arraycopy(dv, 0, br, 0, dv.length);
+                return true;
             }
-            if (seeded) propagate(w, region);
+        }
+        for (int c = 0; c < 3; c++) {
+            spreadChannel(w, region, c);
             short[] val = w.value, br = w.bright;
             for (int i = 0; i < val.length; i++) if (val[i] > br[i]) br[i] = val[i];
         }
@@ -399,6 +402,28 @@ public final class RoundLight {
      * light from it reaches an open cell its neighbours don't already light. Sources on the region's edge count as
      * open. Buried cells then read one step less than full (only faces hidden under the same block sample them).
      */
+    /** Spreads one color channel from the seeds into {@code w.valueC[c]} and raises {@code w.bright}. */
+    private static void spreadChannel(Work w, RenderSectionRegion region, int c) {
+        w.value = w.valueC[c];
+        w.src = w.srcC[c];
+        w.srcValue = w.srcValueC[c];
+        Arrays.fill(w.value, (short) 0);
+        Arrays.fill(w.src, -1);
+        Arrays.fill(w.bucketSize, 0);
+        boolean seeded = false;
+        for (int i = 0; i < w.seedCount; i++) {
+            int idx = w.seedIdx[i];
+            int v = Math.round(w.seedV[i] * w.seedColor[i][c]);
+            if (v <= 0 || v <= w.value[idx]) continue;
+            w.value[idx] = (short) v;
+            w.src[idx] = idx;
+            w.srcValue[idx] = (short) v;
+            w.push(v, idx);
+            seeded = true;
+        }
+        if (seeded) propagate(w, region);
+    }
+
     private static boolean buried(Work w, RenderSectionRegion region, int x, int y, int z, BlockState self) {
         if (x <= 0 || y <= 0 || z <= 0 || x >= N - 1 || y >= N - 1 || z >= N - 1) return false;
         int emission = self.getLightEmission();
