@@ -26,6 +26,9 @@ public abstract class EntityRenderDispatcherMixin {
         quasium$start = System.nanoTime();
         quasium$interval = 0;
         if (camera == null || camera.entity() == entity) return;
+        // an entity of another world (seen through a portal) is not where the camera's distance says it is: no LOD
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player != null && entity.level() != mc.player.level()) return;
         long interval = EntityLod.interval(entity, distanceToSqr(entity));
         quasium$interval = interval;
         if (interval == 0) return;
