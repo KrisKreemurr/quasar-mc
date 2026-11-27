@@ -100,7 +100,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     /** the U-turn's radius (wider for the Sniper-Rang) */
     private double turnRadius = TURN_RADIUS;
     /** Sniper-Rang: 4 damage within 8 blocks, rising to 12 at 56 blocks and beyond */
-    static final float SNIPER_MIN = 4f, SNIPER_NEAR = 8f, SNIPER_FAR = 56f, SNIPER_RANGE = 64f, SNIPER_TURN = 14f;
+    public static final float SNIPER_MIN = 4f, SNIPER_NEAR = 8f, SNIPER_FAR = 56f, SNIPER_RANGE = 64f, SNIPER_TURN = 14f;
 
     static float sniperDamage(double dist, float max) {
         double t = Math.max(0, Math.min(1, (dist - SNIPER_NEAR) / (SNIPER_FAR - SNIPER_NEAR)));
