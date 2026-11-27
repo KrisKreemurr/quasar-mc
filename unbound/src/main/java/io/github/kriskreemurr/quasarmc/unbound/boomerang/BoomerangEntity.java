@@ -274,6 +274,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private boolean spendDurability(ServerLevel level, Player owner) {
         if (spent) return false;
         spent = true;
+        if (owner.getAbilities().instabuild) return false; // creative: no wear, like vanilla tools
         ItemStack stack = getItem().copy();
         stack.hurtAndBreak(1, level, owner instanceof net.minecraft.server.level.ServerPlayer sp ? sp : null, item -> {});
         if (stack.isEmpty()) {
