@@ -21,17 +21,24 @@ public final class BoomerangArmPose {
             else model.leftArm.zRot -= TILT;
         });
 
-    /** gliding: both arms straight up, boomerangs overhead like a rotor */
+    /** legs swung forward while gliding (radians, about 20 degrees) */
+    private static final float GLIDE_LEGS = (float) Math.toRadians(20);
+
+    /** gliding: both arms straight out to the sides (boomerangs as wings), legs a little forward */
     public static final EnumProxy<HumanoidModel.ArmPose> GLIDE = new EnumProxy<>(HumanoidModel.ArmPose.class,
         false, false, (IArmPoseTransformer) (model, state, arm) -> {
             if (arm == HumanoidArm.RIGHT) {
-                model.rightArm.xRot = (float) -Math.PI + 0.15f;
-                model.rightArm.zRot = -0.15f;
+                model.rightArm.xRot = 0f;
+                model.rightArm.yRot = 0f;
+                model.rightArm.zRot = (float) (Math.PI / 2);
             }
             else {
-                model.leftArm.xRot = (float) -Math.PI + 0.15f;
-                model.leftArm.zRot = 0.15f;
+                model.leftArm.xRot = 0f;
+                model.leftArm.yRot = 0f;
+                model.leftArm.zRot = (float) (-Math.PI / 2);
             }
+            model.rightLeg.xRot = -GLIDE_LEGS;
+            model.leftLeg.xRot = -GLIDE_LEGS;
         });
 
     private BoomerangArmPose() {}
