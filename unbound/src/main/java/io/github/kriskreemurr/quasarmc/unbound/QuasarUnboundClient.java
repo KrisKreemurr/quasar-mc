@@ -35,6 +35,7 @@ public class QuasarUnboundClient {
     @SubscribeEvent
     static void onTooltip(net.neoforged.neoforge.event.entity.player.ItemTooltipEvent event) {
         io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.tooltip(event);
+        io.github.kriskreemurr.quasarmc.unbound.gold.GoldenArmor.tooltip(event);
     }
 
     @SubscribeEvent

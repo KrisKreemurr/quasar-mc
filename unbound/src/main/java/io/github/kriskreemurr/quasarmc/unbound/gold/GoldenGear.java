@@ -10,7 +10,7 @@ import net.minecraft.world.item.Items;
  * Blocked paths (mixins): anvil repair with gold or by combining two golden tools ({@code AnvilNoGoldRepairMixin},
  * enchanted books still work, except Mending), crafting-grid repair ({@code RepairItemRecipeNoGoldMixin}),
  * grindstone combining ({@code GrindstoneNoGoldRepairMixin}), Mending's XP repair ({@code NoGoldMendingMixin}).
- * Golden armor is not affected.
+ * Golden armour too since 2026-11-27 (it blocks 95% and melts: {@link GoldenArmor}).
  */
 public final class GoldenGear {
     private GoldenGear() {
@@ -19,7 +19,7 @@ public final class GoldenGear {
     public static boolean is(ItemStack stack) {
         return stack.is(Items.GOLDEN_SWORD) || stack.is(Items.GOLDEN_AXE) || stack.is(Items.GOLDEN_PICKAXE)
                 || stack.is(Items.GOLDEN_SHOVEL) || stack.is(Items.GOLDEN_HOE) || stack.is(Items.GOLDEN_SPEAR)
-                || stack.is(FlintAndGold.ITEM.get())
+                || GoldenArmor.is(stack) || stack.is(FlintAndGold.ITEM.get())
                 || stack.is(io.github.kriskreemurr.quasarmc.unbound.boomerang.Boomerangs.ITEM.get(io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangTier.GOLDEN).get());
     }
 }
