@@ -61,6 +61,7 @@ public final class Boomerangs {
         ITEMS.register(modBus);
         ENTITIES.register(modBus);
         BoomerangGlide.register();
+        TidalSwim.register();
         SOUNDS.register(modBus);
         modBus.addListener(BuildCreativeModeTabContentsEvent.class, e -> {
             if (e.getTabKey() == CreativeModeTabs.COMBAT) {

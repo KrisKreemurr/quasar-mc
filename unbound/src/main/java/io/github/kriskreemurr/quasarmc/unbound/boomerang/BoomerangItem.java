@@ -33,8 +33,8 @@ public class BoomerangItem extends Item {
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         // one boomerang in the air per hand; PASS (not FAIL) lets the other hand have its turn
         if (BoomerangEntity.inFlightFor(level, player, hand) != null) return InteractionResult.PASS;
-        // no throwing underwater (a boomerang can't fly through water)
-        if (player.isUnderWater()) return InteractionResult.FAIL;
+        // no throwing underwater (a boomerang can't fly through water) - except the Tidalrang, which only works there
+        if (player.isUnderWater() != tier.underwater) return InteractionResult.FAIL;
         // wind up: hold right-click (trident pose), release to throw
         player.startUsingItem(hand);
         return InteractionResult.CONSUME;
@@ -57,7 +57,7 @@ public class BoomerangItem extends Item {
         if (held < MIN_WINDUP) return false;
         float power = Math.min(1f, held / (float) FULL_WINDUP);
         InteractionHand hand = player.getUsedItemHand();
-        if (BoomerangEntity.inFlightFor(level, player, hand) != null || player.isUnderWater()) return false;
+        if (BoomerangEntity.inFlightFor(level, player, hand) != null || player.isUnderWater() != tier.underwater) return false;
         if (level instanceof ServerLevel server) {
             // durability is spent when it hits something, not on the throw (BoomerangEntity)
             ItemStack thrown = stack.copyWithCount(1);

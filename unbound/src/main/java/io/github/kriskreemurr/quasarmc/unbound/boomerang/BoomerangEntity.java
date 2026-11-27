@@ -91,6 +91,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private final java.util.List<ItemStack> carried = new java.util.ArrayList<>();
     private int carriedXp;
     private boolean chainBlocked;
+    /** a Tidalrang: flies through water, and the surface (or lava) is its wall */
+    private boolean tidal;
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
     /** this throw's speed and straight-leg length (set by the wind-up) */
@@ -112,6 +114,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         e.outSpeed = OUT_SPEED * (0.55 + 0.45 * power);
         e.straightLength = 8 + (STRAIGHT_BLOCKS - 8) * power;
         e.hitsOnReturn = tier.hitsOnReturn;
+        e.tidal = tier.underwater;
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? owner.getMainArm() : owner.getMainArm().getOpposite();
         e.side = arm == HumanoidArm.RIGHT ? 1 : -1;
         Vec3 look = owner.getLookAngle();
@@ -197,6 +200,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
         phaseTicks++;
         if (collectorLevel > 0) collect(level, owner);
+        if (tidal && isInWater() && tickCount % 2 == 0)
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.BUBBLE, getX(), getY(), getZ(), 2, 0.1, 0.1, 0.1, 0.02);
         Vec3 pos = position();
         Vec3 vel = getDeltaMovement();
         switch (phase) {
@@ -238,9 +243,13 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                         // the block's own break sound: you hear what it hit
                         var state = level.getBlockState(bh.getBlockPos());
                         boolean water = !state.getFluidState().isEmpty() && state.getFluidState().is(net.minecraft.tags.FluidTags.WATER);
+                        boolean lava = state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA);
+                        // a Tidalrang leaving the water: splash at the surface, sizzle on lava
+                        var sound = lava ? SoundEvents.LAVA_EXTINGUISH
+                            : water || (tidal && state.getCollisionShape(level, bh.getBlockPos()).isEmpty()) ? SoundEvents.GENERIC_SPLASH
+                            : state.getSoundType().getBreakSound();
                         level.playSound(null, bh.getLocation().x, bh.getLocation().y, bh.getLocation().z,
-                            water ? SoundEvents.GENERIC_SPLASH : state.getSoundType().getBreakSound(), SoundSource.PLAYERS,
-                            IMPACT_VOLUME, 1.0f);
+                            sound, SoundSource.PLAYERS, IMPACT_VOLUME, 1.0f);
                     }
                     entityData.set(WHOOSH, false);
                     if (spendDurability(level, owner)) return;
@@ -298,7 +307,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 }
             }
             case POP -> {
-                vel = vel.multiply(0.8, 1, 0.8).add(0, -0.04, 0);
+                vel = tidal ? vel.scale(0.8) : vel.multiply(0.8, 1, 0.8).add(0, -0.04, 0);
                 move(pos.add(vel), vel);
                 if (phaseTicks >= POP_TICKS) {
                     phase = RETURN;
@@ -360,7 +369,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             Vec3 cc = c.getBoundingBox().getCenter();
             double d = cc.distanceToSqr(from);
             if (d >= bestD) continue;
-            if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this)).getType()
+            if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, fluidMode(), this)).getType()
                     != HitResult.Type.MISS) continue; // not in sight
             best = c;
             bestD = d;
@@ -372,7 +381,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 cc = c.getBoundingBox().getCenter();
                 double d = cc.distanceToSqr(from);
                 if (d >= bestD) continue;
-                if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this)).getType()
+                if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, fluidMode(), this)).getType()
                         != HitResult.Type.MISS) continue;
                 best = c;
                 bestD = d;
@@ -435,7 +444,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         phaseTicks = 0;
         Vec3 back = owner.position().subtract(position()).multiply(1, 0, 1);
         back = back.lengthSqr() > 1e-6 ? back.normalize().scale(0.3) : Vec3.ZERO;
-        setDeltaMovement(back.add(surfaceNormal.scale(0.25)).add(0, 0.5, 0));
+        // a Tidalrang floats: no upward hop (that would throw it out of the water), just off the wall and back to you
+        setDeltaMovement(tidal ? back.add(surfaceNormal.scale(0.4)) : back.add(surfaceNormal.scale(0.25)).add(0, 0.5, 0));
     }
 
     private void move(Vec3 next, Vec3 vel) {
@@ -449,14 +459,43 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         BlockHitResult bh = null;
         if (blocks) {
             // water counts as solid: a boomerang can't fly into it (it bounces off the surface)
-            bh = level().clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this));
+            bh = level().clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, fluidMode(), this));
             if (bh.getType() != HitResult.Type.MISS) end = bh.getLocation();
             else bh = null;
+            if (tidal) {
+                // the Tidalrang's walls: wherever the water stops (the surface from below, an air pocket, lava)
+                BlockHitResult out = leavesWater(a, end);
+                if (out != null) {
+                    bh = out;
+                    end = out.getLocation();
+                }
+            }
         }
         AABB sweep = getBoundingBox().expandTowards(end.subtract(a)).inflate(1.0);
         EntityHitResult eh = ProjectileUtil.getEntityHitResult(level(), this, a, end, sweep, this::canHitEntity);
         if (eh != null) return eh;
         return bh;
+    }
+
+    /** normal boomerangs treat water as solid; a Tidalrang sees through it */
+    private ClipContext.Fluid fluidMode() {
+        return tidal ? ClipContext.Fluid.NONE : ClipContext.Fluid.WATER;
+    }
+
+    /** the first point between a and b that is out of the water (null if it stays in), as a hit on that block */
+    private BlockHitResult leavesWater(Vec3 a, Vec3 b) {
+        Vec3 d = b.subtract(a);
+        int steps = Math.max(1, (int) Math.ceil(d.length() / 0.25));
+        for (int k = 1; k <= steps; k++) {
+            Vec3 p = a.add(d.scale(k / (double) steps));
+            net.minecraft.core.BlockPos bp = net.minecraft.core.BlockPos.containing(p);
+            if (level().getFluidState(bp).is(net.minecraft.tags.FluidTags.WATER)) continue;
+            Vec3 at = a.add(d.scale((k - 1) / (double) steps));
+            // the face it came through: against the main direction of travel (up into the surface = the DOWN face)
+            net.minecraft.core.Direction face = net.minecraft.core.Direction.getApproximateNearest(-d.x, -d.y, -d.z);
+            return new BlockHitResult(at, face, bp, false);
+        }
+        return null;
     }
 
     @Override
@@ -542,6 +581,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     protected void addAdditionalSaveData(ValueOutput out) {
         super.addAdditionalSaveData(out);
         out.store("Item", ItemStack.OPTIONAL_CODEC, getItem());
+        out.putBoolean("Tidal", tidal);
         out.store("Carried", ItemStack.OPTIONAL_CODEC.listOf(), new java.util.ArrayList<>(carried));
         out.putInt("CarriedXp", carriedXp);
     }
@@ -552,6 +592,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         in.read("Item", ItemStack.OPTIONAL_CODEC).ifPresent(this::setItem);
         in.read("Carried", ItemStack.OPTIONAL_CODEC.listOf()).ifPresent(l -> { carried.clear(); carried.addAll(l); });
         carriedXp = in.getIntOr("CarriedXp", 0);
+        tidal = in.getBooleanOr("Tidal", false);
         // a boomerang loaded from disk just comes home
         phase = RETURN;
         noPhysics = true;

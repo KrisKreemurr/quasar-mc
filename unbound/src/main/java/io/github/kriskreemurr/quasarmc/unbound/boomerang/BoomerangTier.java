@@ -12,7 +12,12 @@ public enum BoomerangTier {
     DIAMOND("diamond_boomerang", 8f, 1561, false, 10),
     NETHERITE("netherite_boomerang", 9f, 2031, false, 15),
     /** gold: hits on the way back too (two hits per throw), 32 uses, never repaired */
-    GOLDEN("golden_boomerang", 11f, 32, true, 22);
+    GOLDEN("golden_boomerang", 11f, 32, true, 22),
+    /**
+     * the Tidalrang (user's): fish fins on a bone. The mirror of the others - it only flies underwater (head under) and
+     * the water's surface is its wall; holding two makes you swim like a fish ({@link TidalSwim})
+     */
+    TIDAL("tidalrang", 7f, 200, false, 12, true);
 
     public final String id;
     public final float damage;
@@ -20,8 +25,15 @@ public enum BoomerangTier {
     public final boolean hitsOnReturn;
     /** enchanting-table enchantability (the tier's tool value) */
     public final int enchantability;
+    /** only thrown underwater, and stays in the water (the Tidalrang); the others can't be thrown underwater */
+    public final boolean underwater;
 
     BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn, int enchantability) {
+        this(id, damage, durability, hitsOnReturn, enchantability, false);
+    }
+
+    BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn, int enchantability, boolean underwater) {
+        this.underwater = underwater;
         this.enchantability = enchantability;
         this.id = id;
         this.damage = damage;
