@@ -1,6 +1,7 @@
 {
   "values": [
     "quasarmc_unbound:glide",
-    "quasarmc_unbound:multi_target"
+    "quasarmc_unbound:multi_target",
+    "quasarmc_unbound:treasure_collector"
   ]
 }

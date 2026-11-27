@@ -10,5 +10,6 @@
   "entity.quasarmc_unbound.boomerang": "Boomerang",
   "subtitles.quasarmc_unbound.boomerang.hit": "Boomerang hits",
   "enchantment.quasarmc_unbound.glide": "Glide",
-  "enchantment.quasarmc_unbound.multi_target": "Multi-Target"
+  "enchantment.quasarmc_unbound.multi_target": "Multi-Target",
+  "enchantment.quasarmc_unbound.treasure_collector": "Treasure Collector"
 }

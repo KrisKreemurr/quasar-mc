@@ -14,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -85,6 +86,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private BoomerangChain.Group chainGroup;
     private final Set<Integer> chainHit = new HashSet<>();
     private Entity chainTarget;
+    /** Treasure Collector: level, and the loot carried home */
+    private int collectorLevel;
+    private final java.util.List<ItemStack> carried = new java.util.ArrayList<>();
+    private int carriedXp;
     private boolean chainBlocked;
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
@@ -119,6 +124,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         e.setDeltaMovement(look.scale(e.outSpeed));
         e.startVy = look.y * e.outSpeed;
         e.chainLeft = BoomerangChain.level(level, stack);
+        e.collectorLevel = BoomerangCollector.level(level, stack);
         return e;
     }
 
@@ -190,6 +196,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             return;
         }
         phaseTicks++;
+        if (collectorLevel > 0) collect(level, owner);
         Vec3 pos = position();
         Vec3 vel = getDeltaMovement();
         switch (phase) {
@@ -256,6 +263,12 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             }
             case CHAIN -> {
                 Entity t = chainTarget;
+                boolean loot = t instanceof ItemEntity || t instanceof net.minecraft.world.entity.ExperienceOrb;
+                if (loot && t.isRemoved()) {
+                    // swept up on the way (Treasure Collector): on to the next one
+                    if (!startChain(level)) startPop(owner, Vec3.ZERO);
+                    break;
+                }
                 if (t == null || t.isRemoved() || !t.isAlive() || t.distanceToSqr(this) > 24 * 24 || phaseTicks > 40) {
                     startPop(owner, Vec3.ZERO);
                     break;
@@ -267,9 +280,12 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 next = pos.add(vel);
                 if (dist <= outSpeed + 0.5 || t.getBoundingBox().inflate(0.3).clip(pos, next).isPresent()) {
                     setPos(t.getBoundingBox().getCenter().x, t.getBoundingBox().getCenter().y, t.getBoundingBox().getCenter().z);
-                    chainDone++;
                     chainHit.add(t.getId());
-                    strike(level, owner, t, (float) Math.pow(BoomerangChain.FALLOFF, chainDone));
+                    if (loot) collect(level, owner);
+                    else {
+                        chainDone++;
+                        strike(level, owner, t, (float) Math.pow(BoomerangChain.FALLOFF, chainDone));
+                    }
                     if (!startChain(level)) startPop(owner, Vec3.ZERO);
                 }
                 else {
@@ -349,6 +365,19 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             best = c;
             bestD = d;
         }
+        if (best == null && collectorLevel > 0) {
+            // no mob left: leftover bounces fly to loot in range (Treasure Collector + Multi-Target)
+            for (Entity c : level.getEntities(this, getBoundingBox().inflate(BoomerangChain.RANGE))) {
+                if (chainHit.contains(c.getId()) || !BoomerangCollector.collectable(c, owner)) continue;
+                Vec3 cc = c.getBoundingBox().getCenter();
+                double d = cc.distanceToSqr(from);
+                if (d >= bestD) continue;
+                if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this)).getType()
+                        != HitResult.Type.MISS) continue;
+                best = c;
+                bestD = d;
+            }
+        }
         if (best == null) return false;
         chainLeft--;
         chainTarget = best;
@@ -356,6 +385,48 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         phaseTicks = 0;
         level.playSound(null, getX(), getY(), getZ(), SoundEvents.NOTE_BLOCK_PLING.value(), SoundSource.PLAYERS, 0.6f, 1.6f + 0.15f * chainDone);
         return true;
+    }
+
+    /** Treasure Collector: pull in loot within the level's radius */
+    private void collect(ServerLevel level, Player owner) {
+        double r = BoomerangCollector.radius(collectorLevel);
+        boolean got = false;
+        for (Entity e : level.getEntities(this, getBoundingBox().inflate(r))) {
+            if (!BoomerangCollector.collectable(e, owner) || e.distanceToSqr(this) > r * r) continue;
+            if (e instanceof ItemEntity item) {
+                carried.add(item.getItem().copy());
+                item.discard();
+                got = true;
+            }
+            else if (e instanceof net.minecraft.world.entity.ExperienceOrb orb) {
+                carriedXp += orb.getValue();
+                orb.discard();
+                got = true;
+            }
+        }
+        if (got) level.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.4f, 1.6f);
+    }
+
+    /** the loot goes to the catcher (spills if the inventory is full) */
+    private void deliverLoot(Player player) {
+        for (ItemStack s : carried) {
+            player.getInventory().add(s);
+            if (!s.isEmpty() && level() instanceof ServerLevel l) player.spawnAtLocation(l, s);
+        }
+        carried.clear();
+        if (carriedXp > 0) player.giveExperiencePoints(carriedXp);
+        carriedXp = 0;
+    }
+
+    /** the loot falls where the boomerang is (or at {@code at}) */
+    private void spillLoot(ServerLevel level, Vec3 at) {
+        for (ItemStack s : carried) {
+            net.minecraft.world.entity.item.ItemEntity ie = new net.minecraft.world.entity.item.ItemEntity(level, at.x, at.y, at.z, s);
+            level.addFreshEntity(ie);
+        }
+        carried.clear();
+        if (carriedXp > 0) net.minecraft.world.entity.ExperienceOrb.award(level, at, carriedXp);
+        carriedXp = 0;
     }
 
     /** the bounce after a hit: upward, back toward the thrower, and away from the surface it hit */
@@ -428,6 +499,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     boolean tryCatch(Player player, InteractionHand with) {
         if (player != getOwner() || !catchWindow() || isRemoved() || !player.getItemInHand(with).isEmpty()) return false;
         player.setItemInHand(with, getItem().copy());
+        deliverLoot(player);
         level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.7f, 1.1f);
         discard();
         return true;
@@ -442,6 +514,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         stack.hurtAndBreak(1, level, owner instanceof net.minecraft.server.level.ServerPlayer sp ? sp : null, item -> {});
         if (stack.isEmpty()) {
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0f, 1.0f);
+            spillLoot(level, position());
             discard();
             return true;
         }
@@ -453,11 +526,15 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         // it hits you exactly like it hits anything else: Power, Punch and all (user: stay consistent)
         strike(level, owner, owner);
         owner.spawnAtLocation(level, getItem().copy());
+        spillLoot(level, owner.position());
         discard();
     }
 
     private void dropHere() {
-        if (level() instanceof ServerLevel level && !getItem().isEmpty()) spawnAtLocation(level, getItem().copy());
+        if (level() instanceof ServerLevel level) {
+            if (!getItem().isEmpty()) spawnAtLocation(level, getItem().copy());
+            spillLoot(level, position());
+        }
         discard();
     }
 
@@ -465,12 +542,16 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     protected void addAdditionalSaveData(ValueOutput out) {
         super.addAdditionalSaveData(out);
         out.store("Item", ItemStack.OPTIONAL_CODEC, getItem());
+        out.store("Carried", ItemStack.OPTIONAL_CODEC.listOf(), new java.util.ArrayList<>(carried));
+        out.putInt("CarriedXp", carriedXp);
     }
 
     @Override
     protected void readAdditionalSaveData(ValueInput in) {
         super.readAdditionalSaveData(in);
         in.read("Item", ItemStack.OPTIONAL_CODEC).ifPresent(this::setItem);
+        in.read("Carried", ItemStack.OPTIONAL_CODEC.listOf()).ifPresent(l -> { carried.clear(); carried.addAll(l); });
+        carriedXp = in.getIntOr("CarriedXp", 0);
         // a boomerang loaded from disk just comes home
         phase = RETURN;
         noPhysics = true;
