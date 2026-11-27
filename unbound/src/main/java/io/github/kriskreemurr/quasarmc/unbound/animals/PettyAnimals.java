@@ -10,17 +10,15 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.PanicGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityAttributeModificationEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 /**
  * Petty farm animals (user, 2026-11-27): chickens, sheep, pigs and cows stay neutral, but hit one and it fights back for
  * a few seconds with petty damage instead of panicking: chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
- * shove, pig 1 heart and a mini hoglin toss (up and back), cow 1 heart with Knockback I. Babies still run. They give
+ * shove, pig 1 heart, cow 1 heart with Knockback I. Babies still run. They give
  * up after {@link #ANGRY_TICKS} or if you get away.
  */
 public final class PettyAnimals {
@@ -61,16 +59,6 @@ public final class PettyAnimals {
                     return !mob.isBaby() && super.canUse();
                 }
             });
-        });
-        // the pig's tusk-less hoglin toss: a little up and back
-        NeoForge.EVENT_BUS.addListener(LivingDamageEvent.Post.class, e -> {
-            if (e.getSource().getDirectEntity() instanceof PathfinderMob pig && pig.getType() == EntityTypes.PIG) {
-                LivingEntity target = e.getEntity();
-                Vec3 away = target.position().subtract(pig.position()).multiply(1, 0, 1);
-                away = away.lengthSqr() > 1e-6 ? away.normalize().scale(0.3) : Vec3.ZERO;
-                target.push(away.x, 0.45, away.z);
-                target.needsSync = true; // send the new motion to the client
-            }
         });
     }
 
