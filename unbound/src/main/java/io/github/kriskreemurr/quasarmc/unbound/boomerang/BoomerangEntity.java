@@ -56,7 +56,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     /** the punch sounds: 60% loudness (friends found them loud); their 32-block range comes from sounds.json */
     private static final float HIT_VOLUME = 0.6f;
 
-    private static final int OUT = 0, POP = 1, RETURN = 2;
+    private static final int OUT = 0, POP = 1, RETURN = 2, CHAIN = 3;
     /** blocks per tick: along the circle 2.0 (40/s), homing back 1.6 (32/s) */
     private static final double OUT_SPEED = 2.0, RETURN_SPEED = 1.6;
     /** the capsule: straight this far along the aim, then a U-turn of this radius toward the hand's side */
@@ -80,6 +80,11 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private int side = 1;
     private InteractionHand hand = InteractionHand.MAIN_HAND;
     private final Set<Integer> hitOnReturn = new HashSet<>();
+    /** Multi-Target: bounces left, the first target's group, who was hit, the target it is flying to, bounces done */
+    private int chainLeft, chainDone;
+    private BoomerangChain.Group chainGroup;
+    private final Set<Integer> chainHit = new HashSet<>();
+    private Entity chainTarget;
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
     /** this throw's speed and straight-leg length (set by the wind-up) */
@@ -112,6 +117,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         e.setPos(start.x, start.y, start.z);
         e.setDeltaMovement(look.scale(e.outSpeed));
         e.startVy = look.y * e.outSpeed;
+        e.chainLeft = BoomerangChain.level(level, stack);
         return e;
     }
 
@@ -215,7 +221,11 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 next = pos.add(vel);
                 HitResult hit = hitAlong(pos, next, true);
                 if (hit != null) {
-                    if (hit instanceof EntityHitResult eh) strike(level, owner, eh.getEntity());
+                    if (hit instanceof EntityHitResult eh) {
+                        strike(level, owner, eh.getEntity(), 1f);
+                        chainGroup = BoomerangChain.classify(eh.getEntity(), owner);
+                        chainHit.add(eh.getEntity().getId());
+                    }
                     else if (hit instanceof BlockHitResult bh) {
                         // the block's own break sound: you hear what it hit
                         var state = level.getBlockState(bh.getBlockPos());
@@ -227,6 +237,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     entityData.set(WHOOSH, false);
                     if (spendDurability(level, owner)) return;
                     setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
+                    if (hit instanceof EntityHitResult && startChain(level)) return;
                     // bounce off: up and back toward you, and off the face of a block (never on into what it hit)
                     Vec3 off = hit instanceof BlockHitResult bh2
                         ? Vec3.atLowerCornerOf(bh2.getDirection().getUnitVec3i()) : Vec3.ZERO;
@@ -240,6 +251,33 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                         phaseTicks = 0;
                         noPhysics = true;
                     }
+                }
+            }
+            case CHAIN -> {
+                Entity t = chainTarget;
+                if (t == null || t.isRemoved() || !t.isAlive() || t.distanceToSqr(this) > 16 * 16 || phaseTicks > 40) {
+                    startPop(owner, Vec3.ZERO);
+                    break;
+                }
+                // a sharp turn straight at the next target; only that target counts as a hit
+                Vec3 aim = t.getBoundingBox().getCenter().subtract(pos);
+                double dist = aim.length();
+                vel = dist < 1e-6 ? Vec3.ZERO : aim.scale(outSpeed / dist);
+                Vec3 next = pos.add(vel);
+                if (dist <= outSpeed + 0.5 || t.getBoundingBox().inflate(0.3).clip(pos, next).isPresent()) {
+                    setPos(t.getBoundingBox().getCenter().x, t.getBoundingBox().getCenter().y, t.getBoundingBox().getCenter().z);
+                    chainDone++;
+                    chainHit.add(t.getId());
+                    strike(level, owner, t, (float) Math.pow(BoomerangChain.FALLOFF, chainDone));
+                    if (!startChain(level)) startPop(owner, Vec3.ZERO);
+                }
+                else {
+                    HitResult wall = hitAlong(pos, next, true);
+                    if (wall instanceof BlockHitResult wb) {
+                        setPos(wb.getLocation().x, wb.getLocation().y, wb.getLocation().z);
+                        startPop(owner, Vec3.atLowerCornerOf(wb.getDirection().getUnitVec3i()));
+                    }
+                    else move(next, vel);
                 }
             }
             case POP -> {
@@ -294,6 +332,31 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
     }
 
+    /** Multi-Target: pick the next target in the first target's group (nearest, in sight, not hit yet) and go */
+    private boolean startChain(ServerLevel level) {
+        if (chainLeft <= 0 || chainGroup == null || !(getOwner() instanceof Player owner)) return false;
+        Entity best = null;
+        double bestD = BoomerangChain.RANGE * BoomerangChain.RANGE;
+        Vec3 from = position();
+        for (Entity c : level.getEntities(this, getBoundingBox().inflate(BoomerangChain.RANGE))) {
+            if (chainHit.contains(c.getId()) || BoomerangChain.classify(c, owner) != chainGroup) continue;
+            Vec3 cc = c.getBoundingBox().getCenter();
+            double d = cc.distanceToSqr(from);
+            if (d >= bestD) continue;
+            if (level.clip(new ClipContext(from, cc, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this)).getType()
+                    != HitResult.Type.MISS) continue; // not in sight
+            best = c;
+            bestD = d;
+        }
+        if (best == null) return false;
+        chainLeft--;
+        chainTarget = best;
+        phase = CHAIN;
+        phaseTicks = 0;
+        level.playSound(null, getX(), getY(), getZ(), SoundEvents.NOTE_BLOCK_PLING.value(), SoundSource.PLAYERS, 0.6f, 1.6f + 0.15f * chainDone);
+        return true;
+    }
+
     /** the bounce after a hit: upward, back toward the thrower, and away from the surface it hit */
     private void startPop(Player owner, Vec3 surfaceNormal) {
         phase = POP;
@@ -331,10 +394,15 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     }
 
     private void strike(ServerLevel level, Player owner, Entity target) {
+        strike(level, owner, target, 1f);
+    }
+
+    /** {@code scale}: this hit's share of the boomerang's damage (Multi-Target bounces fall off) */
+    private void strike(ServerLevel level, Player owner, Entity target, float scale) {
         // Power and Punch (their vanilla files are overridden to accept boomerangs, see data/minecraft/enchantment)
         var source = damageSources().thrown(this, owner);
         ItemStack weapon = getItem();
-        float dmg = net.minecraft.world.item.enchantment.EnchantmentHelper.modifyDamage(level, weapon, target, source, damage);
+        float dmg = net.minecraft.world.item.enchantment.EnchantmentHelper.modifyDamage(level, weapon, target, source, damage) * scale;
         boolean hurt = target.hurtServer(level, source, dmg);
         float punch = net.minecraft.world.item.enchantment.EnchantmentHelper.modifyKnockback(level, weapon, target, source, 0f);
         if (hurt && punch > 0 && target instanceof LivingEntity living) {

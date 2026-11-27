@@ -1,5 +1,6 @@
 {
   "values": [
-    "quasarmc_unbound:glide"
+    "quasarmc_unbound:glide",
+    "quasarmc_unbound:multi_target"
   ]
 }
