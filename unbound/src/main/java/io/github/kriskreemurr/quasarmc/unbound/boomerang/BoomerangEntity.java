@@ -298,7 +298,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                         if (live) {
                             // a live Cracker-Rang hits AND blows up: the impact's damage-immunity window (vanilla's
                             // half second after any hit) would swallow most of the blast, so the target is open again
-                            eh.getEntity().invulnerableTime = 0;
+                            eh.getEntity().setInvulnerableTime(0);
                             explode(level, owner, hit.getLocation());
                         }
                         chainGroup = BoomerangChain.classify(eh.getEntity(), owner);
