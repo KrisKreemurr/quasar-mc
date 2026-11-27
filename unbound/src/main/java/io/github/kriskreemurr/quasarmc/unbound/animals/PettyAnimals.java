@@ -17,7 +17,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 /**
  * Petty farm animals (user, 2026-11-27): chickens, sheep, pigs and cows stay neutral, but hit one and it fights back for
- * a few seconds with petty damage instead of panicking: chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
+ * a few seconds with petty damage instead of panicking (hit a chicken and the flock nearby joins in): chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
  * shove, pig 1 heart, cow 1 heart with Knockback I - and cows charge: they chase at a sprint and leap into you. Babies still run. They give
  * up after {@link #ANGRY_TICKS} or if you get away. Horses, donkeys and mules bite in front and buck whoever is behind
  * them; tamed ones never go after their owner.
@@ -72,7 +72,7 @@ public final class PettyAnimals {
             // so it is kept and the attack goals only run for adults)
             mob.goalSelector.removeAllGoals(g -> g instanceof PanicGoal && !mob.isBaby());
             mob.goalSelector.addGoal(1, new PettyAttackGoal(mob, FIGHTERS.get(mob.getType())));
-            mob.targetSelector.addGoal(1, new HurtByTargetGoal(mob) {
+            HurtByTargetGoal revenge = new HurtByTargetGoal(mob) {
                 @Override
                 public boolean canUse() {
                     // a tamed animal forgives its owner
@@ -80,7 +80,10 @@ public final class PettyAnimals {
                             && own.getOwner() == mob.getLastHurtByMob()) return false;
                     return !mob.isBaby() && super.canUse();
                 }
-            });
+            };
+            // chickens defend each other (user's brother, 2026-11-27): hit one and the flock nearby comes for you
+            if (mob.getType() == EntityTypes.CHICKEN) revenge.setAlertOthers();
+            mob.targetSelector.addGoal(1, revenge);
         });
     }
 
@@ -92,6 +95,9 @@ public final class PettyAnimals {
         /** the cow charge: ticks left in the leap, whether it has landed its hit, and the wait before the next one */
         private int leapTicks, leapCooldown;
         private boolean leapHit;
+        /** when it got angry at its current target (hit itself, or called in by the flock) */
+        private int angrySince;
+        private LivingEntity angryAt;
 
         PettyAttackGoal(PathfinderMob mob, Fight fight) {
             super(mob, fight.chaseSpeed(), false);
@@ -179,8 +185,13 @@ public final class PettyAnimals {
 
         private boolean stillAngry() {
             LivingEntity t = mob.getTarget();
+            if (t != angryAt) {
+                angryAt = t;
+                angrySince = mob.tickCount;
+            }
+            int since = Math.max(angrySince, mob.getLastHurtByMobTimestamp());
             boolean angry = !mob.isBaby() && t != null && t.isAlive()
-                && mob.tickCount - mob.getLastHurtByMobTimestamp() < ANGRY_TICKS
+                && mob.tickCount - since < ANGRY_TICKS
                 && mob.distanceToSqr(t) < GIVE_UP_DISTANCE * GIVE_UP_DISTANCE;
             if (!angry && t != null) mob.setTarget(null); // calm down
             return angry;
