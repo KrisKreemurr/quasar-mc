@@ -17,7 +17,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 /**
  * Petty farm animals (user, 2026-11-27): chickens, sheep, pigs and cows stay neutral, but hit one and it fights back for
- * a few seconds with petty damage instead of panicking (hit a chicken and the flock nearby joins in): chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
+ * a few seconds with petty damage instead of panicking (kill a chicken and the flock nearby avenges it for 12 s): chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
  * shove, pig 1 heart, cow 1 heart with Knockback I - and cows charge: they chase at a sprint and leap into you. Babies still run. They give
  * up after {@link #ANGRY_TICKS} or if you get away. Horses, donkeys and mules bite in front and buck whoever is behind
  * them; tamed ones never go after their owner.
@@ -51,6 +51,15 @@ public final class PettyAnimals {
     private static final int ANGRY_TICKS = 100;
     /** it gives up if you get further away than this */
     private static final double GIVE_UP_DISTANCE = 12;
+    /**
+     * Kill a chicken and the flock avenges it (user's brother, 2026-11-27): adult chickens within this range go for the
+     * killer for {@link #FLOCK_FURY_TICKS} (12 s). Hurting one only makes that one angry.
+     */
+    private static final double FLOCK_RANGE = 16;
+    private static final int FLOCK_FURY_TICKS = 240;
+    /** per avenging chicken: its tickCount when the fury ends (server thread only) */
+    private static final Map<net.minecraft.world.entity.Mob, Integer> FURY = new java.util.WeakHashMap<>();
+
     /** a blocked cow charge drops your shield this long (2 s; an axe does 5 s) */
     private static final int SHIELD_DISABLE_TICKS = 40;
 
@@ -63,6 +72,17 @@ public final class PettyAnimals {
                 EntityType<? extends LivingEntity> type = (EntityType<? extends LivingEntity>) f.getKey();
                 if (!e.has(type, Attributes.ATTACK_DAMAGE)) e.add(type, Attributes.ATTACK_DAMAGE, f.getValue().damage());
                 if (!e.has(type, Attributes.ATTACK_KNOCKBACK)) e.add(type, Attributes.ATTACK_KNOCKBACK, f.getValue().knockback());
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.event.entity.living.LivingDeathEvent.class, e -> {
+            if (e.getEntity().level().isClientSide() || e.getEntity().getType() != EntityTypes.CHICKEN) return;
+            if (!(e.getSource().getEntity() instanceof LivingEntity killer) || killer.getType() == EntityTypes.CHICKEN) return;
+            var dead = e.getEntity();
+            for (net.minecraft.world.entity.animal.Animal c : dead.level().getEntitiesOfClass(net.minecraft.world.entity.animal.Animal.class,
+                    dead.getBoundingBox().inflate(FLOCK_RANGE, 6, FLOCK_RANGE),
+                    c -> c != dead && c.isAlive() && !c.isBaby() && c.getType() == EntityTypes.CHICKEN)) {
+                c.setTarget(killer);
+                FURY.put(c, c.tickCount + FLOCK_FURY_TICKS);
             }
         });
         NeoForge.EVENT_BUS.addListener(EntityJoinLevelEvent.class, e -> {
@@ -81,8 +101,6 @@ public final class PettyAnimals {
                     return !mob.isBaby() && super.canUse();
                 }
             };
-            // chickens defend each other (user's brother, 2026-11-27): hit one and the flock nearby comes for you
-            if (mob.getType() == EntityTypes.CHICKEN) revenge.setAlertOthers();
             mob.targetSelector.addGoal(1, revenge);
         });
     }
@@ -190,8 +208,11 @@ public final class PettyAnimals {
                 angrySince = mob.tickCount;
             }
             int since = Math.max(angrySince, mob.getLastHurtByMobTimestamp());
+            Integer fury = FURY.get(mob);
+            boolean furious = fury != null && mob.tickCount < fury;
+            if (fury != null && !furious) FURY.remove(mob);
             boolean angry = !mob.isBaby() && t != null && t.isAlive()
-                && mob.tickCount - since < ANGRY_TICKS
+                && (furious || mob.tickCount - since < ANGRY_TICKS)
                 && mob.distanceToSqr(t) < GIVE_UP_DISTANCE * GIVE_UP_DISTANCE;
             if (!angry && t != null) mob.setTarget(null); // calm down
             return angry;
