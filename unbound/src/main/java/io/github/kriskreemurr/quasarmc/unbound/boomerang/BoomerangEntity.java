@@ -217,8 +217,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     else if (hit instanceof BlockHitResult bh) {
                         // the block's own break sound: you hear what it hit
                         var state = level.getBlockState(bh.getBlockPos());
+                        boolean water = !state.getFluidState().isEmpty() && state.getFluidState().is(net.minecraft.tags.FluidTags.WATER);
                         level.playSound(null, bh.getLocation().x, bh.getLocation().y, bh.getLocation().z,
-                            state.getSoundType().getBreakSound(), SoundSource.PLAYERS, IMPACT_VOLUME, 1.0f);
+                            water ? SoundEvents.GENERIC_SPLASH : state.getSoundType().getBreakSound(), SoundSource.PLAYERS,
+                            IMPACT_VOLUME, 1.0f);
                     }
                     entityData.set(WHOOSH, false);
                     if (spendDurability(level, owner)) return;
@@ -309,7 +311,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 end = b;
         BlockHitResult bh = null;
         if (blocks) {
-            bh = level().clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+            // water counts as solid: a boomerang can't fly into it (it bounces off the surface)
+            bh = level().clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.WATER, this));
             if (bh.getType() != HitResult.Type.MISS) end = bh.getLocation();
             else bh = null;
         }
