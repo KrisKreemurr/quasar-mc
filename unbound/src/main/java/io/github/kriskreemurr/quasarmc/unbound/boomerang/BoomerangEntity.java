@@ -85,6 +85,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private BoomerangChain.Group chainGroup;
     private final Set<Integer> chainHit = new HashSet<>();
     private Entity chainTarget;
+    private boolean chainBlocked;
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
     /** this throw's speed and straight-leg length (set by the wind-up) */
@@ -334,7 +335,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
 
     /** Multi-Target: pick the next target in the first target's group (nearest, in sight, not hit yet) and go */
     private boolean startChain(ServerLevel level) {
-        if (chainLeft <= 0 || chainGroup == null || !(getOwner() instanceof Player owner)) return false;
+        if (chainLeft <= 0 || chainGroup == null || chainBlocked || !(getOwner() instanceof Player owner)) return false;
         Entity best = null;
         double bestD = BoomerangChain.RANGE * BoomerangChain.RANGE;
         Vec3 from = position();
@@ -398,7 +399,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     }
 
     /** {@code scale}: this hit's share of the boomerang's damage (Multi-Target bounces fall off) */
-    private void strike(ServerLevel level, Player owner, Entity target, float scale) {
+    /** true if it did damage (false: blocked by a shield, or immune) */
+    private boolean strike(ServerLevel level, Player owner, Entity target, float scale) {
         // Power and Punch (their vanilla files are overridden to accept boomerangs, see data/minecraft/enchantment)
         var source = damageSources().thrown(this, owner);
         ItemStack weapon = getItem();
@@ -414,6 +416,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             }
         }
         if (hurt) net.minecraft.world.item.enchantment.EnchantmentHelper.doPostAttackEffectsWithItemSource(level, target, source, weapon);
+        else chainBlocked = true; // a shield (or immunity) stops a Multi-Target chain: it deflects home
+        return hurt;
         level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
             HIT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
     }
