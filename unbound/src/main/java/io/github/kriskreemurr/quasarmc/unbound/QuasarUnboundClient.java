@@ -23,6 +23,11 @@ public class QuasarUnboundClient {
     }
 
     @SubscribeEvent
+    static void onClientExtensions(net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent event) {
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.registerItemExtensions(event);
+    }
+
+    @SubscribeEvent
     static void onRegisterRenderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
         io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.registerRenderers(event);
     }

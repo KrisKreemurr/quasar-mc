@@ -20,6 +20,21 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 public final class BoomerangClient {
     private BoomerangClient() {}
 
+    /** the tilted-arm hold (not while winding up: then vanilla's trident pose) */
+    public static void registerItemExtensions(net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent e) {
+        var ext = new net.neoforged.neoforge.client.extensions.common.IClientItemExtensions() {
+            @Override
+            public net.minecraft.client.model.HumanoidModel.ArmPose getArmPose(net.minecraft.world.entity.LivingEntity entity,
+                    InteractionHand hand, net.minecraft.world.item.ItemStack stack) {
+                if (entity.isUsingItem() && entity.getUsedItemHand() == hand) return null;
+                return BoomerangArmPose.HOLD.getValue();
+            }
+        };
+        for (var tier : io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangTier.values()) {
+            e.registerItem(ext, Boomerangs.ITEM.get(tier).get());
+        }
+    }
+
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers e) {
         e.registerEntityRenderer(Boomerangs.ENTITY.get(), BoomerangRenderer::new);
     }

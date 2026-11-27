@@ -9,6 +9,8 @@ description='''
 ${mod_description}
 '''
 
+enumExtensions="META-INF/enumextensions.json"
+
 [[mixins]]
     config="quasarmc_unbound.mixins.json"
 

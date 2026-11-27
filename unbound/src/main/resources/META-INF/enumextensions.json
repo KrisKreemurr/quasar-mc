@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "QUASARMC_UNBOUND_BOOMERANG_HOLD",
+      "constructor": "(ZZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "io/github/kriskreemurr/quasarmc/unbound/boomerang/client/BoomerangArmPose",
+        "field": "HOLD"
+      }
+    }
+  ]
+}
