@@ -39,6 +39,11 @@ public class QuasarUnboundClient {
     }
 
     @SubscribeEvent
+    static void onMusic(net.neoforged.neoforge.client.event.SelectMusicEvent event) {
+        io.github.kriskreemurr.quasarmc.unbound.music.QuasarMusic.select(event);
+    }
+
+    @SubscribeEvent
     static void onFov(net.neoforged.neoforge.client.event.ComputeFovModifierEvent event) {
         io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.zoom(event);
     }
