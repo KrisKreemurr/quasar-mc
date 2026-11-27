@@ -27,13 +27,19 @@ public final class PettyAnimals {
      * damage (half-hearts) and knockback per type; horses also have a rear kick ({@code kick} damage, {@code kickKnockback}
      * in Knockback levels) for whoever is behind them, 0 = none
      */
-    private record Fight(double damage, double knockback, float kick, float kickKnockback, double chaseSpeed, boolean charge) {
+    private record Fight(double damage, double knockback, float kick, float kickKnockback, double chaseSpeed, boolean charge,
+                         float rear) {
         Fight(double damage, double knockback) {
-            this(damage, knockback, 0f, 0f, 1.25, false);
+            this(damage, knockback, 0f, 0f, 1.25, false, 0f);
         }
 
-        Fight(double damage, double knockback, float kick, float kickKnockback) {
-            this(damage, knockback, kick, kickKnockback, 1.25, false);
+        Fight(double damage, double knockback, float kick, float kickKnockback, double chaseSpeed, boolean charge) {
+            this(damage, knockback, kick, kickKnockback, chaseSpeed, charge, 0f);
+        }
+
+        /** horses: bite, buck behind, and a rear-up strike in front ({@code rear} damage when the hooves come down) */
+        Fight(double damage, double knockback, float kick, float kickKnockback, float rear) {
+            this(damage, knockback, kick, kickKnockback, 1.25, false, rear);
         }
     }
     private static final Map<EntityType<?>, Fight> FIGHTERS = Map.of(
@@ -45,9 +51,10 @@ public final class PettyAnimals {
         EntityTypes.COW, new Fight(2.0, 1.0, 0f, 0f, 2.0, true),
         EntityTypes.MOOSHROOM, new Fight(2.0, 1.0, 0f, 0f, 2.0, true),
         // horses: a 1-heart bite in front, a 3.5-heart Knockback II buck behind; donkeys and mules: 2 hearts, Knockback I
-        EntityTypes.HORSE, new Fight(2.0, 0.0, 7f, 2f),
-        EntityTypes.DONKEY, new Fight(2.0, 0.0, 4f, 1f),
-        EntityTypes.MULE, new Fight(2.0, 0.0, 4f, 1f));
+        // and in front they rear up and strike as the front hooves come down: horse 2 hearts, donkey/mule 1.5
+        EntityTypes.HORSE, new Fight(2.0, 0.0, 7f, 2f, 4f),
+        EntityTypes.DONKEY, new Fight(2.0, 0.0, 4f, 1f, 3f),
+        EntityTypes.MULE, new Fight(2.0, 0.0, 4f, 1f, 3f));
     /** how long one stays angry after being hit (5 s) */
     private static final int ANGRY_TICKS = 100;
     /** it gives up if you get further away than this */
@@ -62,6 +69,9 @@ public final class PettyAnimals {
     private static final int FLOCK_FURY_TICKS = 240;
     /** per avenging chicken: its tickCount when the fury ends (server thread only) */
     private static final Map<net.minecraft.world.entity.Mob, Integer> FURY = new java.util.WeakHashMap<>();
+
+    /** the rear-up: standing this long (vanilla rears for 20), the hit when the hooves are coming down, done after */
+    private static final int REAR_STAND_TICKS = 12, REAR_HIT_TICK = 15, REAR_TICKS = 20;
 
     /** a blocked cow charge drops your shield this long (2 s; an axe does 5 s) */
     private static final int SHIELD_DISABLE_TICKS = 40;
@@ -117,6 +127,8 @@ public final class PettyAnimals {
         private int kickCooldown;
         /** the cow charge: ticks left in the leap, whether it has landed its hit, and the wait before the next one */
         private int leapTicks, leapCooldown;
+        /** the rear-up strike: ticks since it reared (0 = not rearing), and the wait before the next */
+        private int rearTicks, rearCooldown;
         private boolean leapHit;
         /** when it got angry at its current target (hit itself, or called in by the flock) */
         private int angrySince;
@@ -132,7 +144,11 @@ public final class PettyAnimals {
         public void tick() {
             if (kickCooldown > 0) kickCooldown--;
             if (leapCooldown > 0) leapCooldown--;
+            if (rearCooldown > 0) rearCooldown--;
             LivingEntity t = mob.getTarget();
+            if (fight.rear() > 0 && t != null && mob instanceof net.minecraft.world.entity.animal.equine.AbstractHorse horse
+                    && mob.level() instanceof net.minecraft.server.level.ServerLevel level && rear(level, horse, t))
+                return;
             if (fight.charge() && t != null && mob.level() instanceof net.minecraft.server.level.ServerLevel level && charge(level, t))
                 return;
             if (fight.kick() > 0 && t != null && kickCooldown == 0 && behind(t) && mob.distanceToSqr(t) < 2.5 * 2.5
@@ -195,6 +211,49 @@ public final class PettyAnimals {
                 return true;
             }
             return false;
+        }
+
+        /**
+         * The rear-up strike (vanilla's rearing): in front and close, it rears (angry whinny) and the hit lands as the
+         * front hooves come down - if you're still in front and close. Back away during the rear to dodge it.
+         */
+        private boolean rear(net.minecraft.server.level.ServerLevel level, net.minecraft.world.entity.animal.equine.AbstractHorse horse,
+                             LivingEntity t) {
+            if (rearTicks > 0) {
+                rearTicks++;
+                mob.getLookControl().setLookAt(t, 30f, 30f);
+                if (rearTicks == REAR_HIT_TICK && inFront(t) && mob.distanceToSqr(t) < 3.0 * 3.0) {
+                    if (t.hurtServer(level, mob.damageSources().mobAttack(mob), fight.rear())) {
+                        net.minecraft.world.phys.Vec3 dir = t.position().subtract(mob.position()).multiply(1, 0, 1);
+                        dir = dir.lengthSqr() > 1e-6 ? dir.normalize() : net.minecraft.world.phys.Vec3.ZERO;
+                        t.push(dir.x * 0.4, 0.15, dir.z * 0.4);
+                        t.needsSync = true;
+                    }
+                }
+                if (rearTicks >= REAR_TICKS) {
+                    rearTicks = 0;
+                    rearCooldown = 50;
+                }
+                return true;
+            }
+            if (rearCooldown == 0 && inFront(t) && mob.distanceToSqr(t) < 2.8 * 2.8 && !horse.isStanding()) {
+                horse.makeMad(); // rears up with its angry sound (if it can rear at all)
+                if (horse.isStanding()) {
+                    horse.setStanding(REAR_STAND_TICKS); // a shorter rear than vanilla's 20 ticks: up, a beat, down
+                    rearTicks = 1;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** the target is in front of the animal (within about 60 degrees of where its body faces) */
+        private boolean inFront(LivingEntity t) {
+            double yaw = Math.toRadians(mob.yBodyRot);
+            double fx = -Math.sin(yaw), fz = Math.cos(yaw);
+            double dx = t.getX() - mob.getX(), dz = t.getZ() - mob.getZ();
+            double len = Math.sqrt(dx * dx + dz * dz);
+            return len > 1e-6 && (fx * dx + fz * dz) / len > 0.5;
         }
 
         /** the target is behind the animal (more than 120 degrees from where its body faces) */
