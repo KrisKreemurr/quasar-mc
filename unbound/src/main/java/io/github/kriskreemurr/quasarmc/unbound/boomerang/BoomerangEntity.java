@@ -185,7 +185,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     entityData.set(WHOOSH, false);
                     if (spendDurability(level, owner)) return;
                     setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
-                    startPop(vel);
+                    // bounce off: up and back toward you, and off the face of a block (never on into what it hit)
+                    Vec3 off = hit instanceof BlockHitResult bh2
+                        ? Vec3.atLowerCornerOf(bh2.getDirection().getUnitVec3i()) : Vec3.ZERO;
+                    startPop(owner, off);
                 }
                 else {
                     move(next, vel);
@@ -198,7 +201,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 }
             }
             case POP -> {
-                vel = vel.multiply(0.6, 1, 0.6).add(0, -0.06, 0);
+                vel = vel.multiply(0.8, 1, 0.8).add(0, -0.04, 0);
                 move(pos.add(vel), vel);
                 if (phaseTicks >= POP_TICKS) {
                     phase = RETURN;
@@ -252,10 +255,13 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
     }
 
-    private void startPop(Vec3 vel) {
+    /** the bounce after a hit: upward, back toward the thrower, and away from the surface it hit */
+    private void startPop(Player owner, Vec3 surfaceNormal) {
         phase = POP;
         phaseTicks = 0;
-        setDeltaMovement(vel.multiply(0.3, 0, 0.3).add(0, 0.35, 0));
+        Vec3 back = owner.position().subtract(position()).multiply(1, 0, 1);
+        back = back.lengthSqr() > 1e-6 ? back.normalize().scale(0.3) : Vec3.ZERO;
+        setDeltaMovement(back.add(surfaceNormal.scale(0.25)).add(0, 0.5, 0));
     }
 
     private void move(Vec3 next, Vec3 vel) {
