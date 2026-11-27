@@ -11,8 +11,8 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * A pair of Tidalrangs (user's perk): with one in <b>each</b> hand and in water, you swim like a fish: Depth Strider II
- * (real Depth Strider III still beats it). Only that: Dolphin's Grace on top multiplied into ~30 blocks/s (user,
+ * A pair of Tidalrangs (user's perk): with one in <b>each</b> hand and in water, you swim like a fish: Depth Strider III
+ * (user, 2026-11-27: II felt too slow; III matches land speed on the sea floor). Only that: Dolphin's Grace on top multiplied into ~30 blocks/s (user,
  * 2026-11-27); a real dolphin's buff still adds on top, like it would with Depth Strider boots. One Tidalrang does nothing; throw one and the perk is off until it's back in hand.
  */
 public final class TidalSwim {
@@ -36,8 +36,8 @@ public final class TidalSwim {
         boolean on = p.isInWater() && pair(p);
         AttributeInstance floor = p.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY);
         if (floor != null) {
-            // Depth Strider II (each level is +1/3); real Depth Strider III stays the best on the sea floor (the attribute caps at 1)
-            if (on) floor.addOrUpdateTransientModifier(new AttributeModifier(FLOOR, 2.0 / 3.0, AttributeModifier.Operation.ADD_VALUE));
+            // Depth Strider III (each level is +1/3; the attribute caps at 1, so boots add nothing on top)
+            if (on) floor.addOrUpdateTransientModifier(new AttributeModifier(FLOOR, 1.0, AttributeModifier.Operation.ADD_VALUE));
             else if (floor.hasModifier(FLOOR)) floor.removeModifier(FLOOR);
         }
     }
