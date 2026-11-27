@@ -79,7 +79,9 @@ public final class Boomerangs {
                     Player player = ctx.player();
                     BoomerangEntity b = BoomerangEntity.catchableFor(player.level(), player);
                     if (b != null) b.tryCatch(player, payload.offhand() ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND);
-                }));
+                })
+                .playToClient(CrackerBurstPayload.TYPE, CrackerBurstPayload.STREAM_CODEC,
+                    (payload, ctx) -> payload.show(ctx.player().level())));
     }
 
     public static boolean isBoomerang(net.minecraft.world.item.ItemStack stack) {

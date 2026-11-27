@@ -121,6 +121,12 @@ public final class BoomerangClient {
         else lines.add(net.minecraft.network.chat.Component.translatable(k + "damage", num).withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
         if (tier.hitsOnReturn)
             lines.add(net.minecraft.network.chat.Component.translatable(k + "hits_on_return").withStyle(net.minecraft.ChatFormatting.BLUE));
+        if (tier.cracker()) {
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker", (int) io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangEntity.CRACKER_BLAST)
+                .withStyle(net.minecraft.ChatFormatting.BLUE));
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker_ammo").withStyle(net.minecraft.ChatFormatting.BLUE));
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker_catch").withStyle(net.minecraft.ChatFormatting.BLUE));
+        }
         if (tier.underwater) {
             lines.add(net.minecraft.network.chat.Component.translatable(k + "underwater").withStyle(net.minecraft.ChatFormatting.BLUE));
             lines.add(net.minecraft.network.chat.Component.translatable(k + "tidal_pair").withStyle(net.minecraft.ChatFormatting.BLUE));

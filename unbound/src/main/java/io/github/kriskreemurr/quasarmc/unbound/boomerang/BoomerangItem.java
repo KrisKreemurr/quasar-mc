@@ -40,6 +40,20 @@ public class BoomerangItem extends Item {
         return InteractionResult.CONSUME;
     }
 
+    /** Cracker-Rang ammo: one gunpowder from anywhere in the inventory (free in creative) */
+    private static boolean takeGunpowder(Player player) {
+        if (player.getAbilities().instabuild) return true;
+        var inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.is(net.minecraft.world.item.Items.GUNPOWDER)) {
+                s.shrink(1);
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public ItemUseAnimation getUseAnimation(ItemStack stack) {
         return ItemUseAnimation.TRIDENT;
@@ -63,6 +77,7 @@ public class BoomerangItem extends Item {
             ItemStack thrown = stack.copyWithCount(1);
             stack.shrink(1);
             BoomerangEntity e = BoomerangEntity.thrown(server, player, thrown, hand, tier, power);
+            if (tier.cracker() && takeGunpowder(player)) e.arm();
             server.addFreshEntity(e);
             level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TRIDENT_THROW,
                 SoundSource.PLAYERS, 0.6f + 0.3f * power, 1.5f - 0.3f * power);

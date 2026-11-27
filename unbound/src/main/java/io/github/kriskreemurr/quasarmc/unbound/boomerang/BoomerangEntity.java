@@ -97,6 +97,39 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private boolean sniper;
     private Vec3 thrownFrom = Vec3.ZERO;
     private float sniperMax = 12f;
+    /** Cracker-Rang carrying gunpowder: its first hit (or a missed catch) explodes */
+    private boolean live;
+    /** the Cracker-Rang blast: a 1-star firework's (7 at the centre, falling off to 0 at 5 blocks) */
+    public static final float CRACKER_BLAST = 7f;
+    static final double CRACKER_RADIUS = 5;
+
+    void arm() {
+        live = true;
+    }
+
+    /**
+     * The blast, vanilla firework style: everything alive within 5 blocks with a clear line takes 7 * sqrt((5 - d) / 5),
+     * thrower included; no blocks broken. Shields and Blast Protection work (explosion damage). Every client nearby
+     * draws a firework burst in random colours.
+     */
+    private void explode(ServerLevel level, Player owner, Vec3 at) {
+        live = false;
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayersNear(level, null, at.x, at.y, at.z, 96,
+            new CrackerBurstPayload(at.x, at.y, at.z, level.getRandom().nextLong()));
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(CRACKER_RADIUS))) {
+            double d = Math.sqrt(e.distanceToSqr(at));
+            if (d > CRACKER_RADIUS || !e.isAlive()) continue;
+            boolean seen = false;
+            for (int k = 0; k < 2 && !seen; k++) {
+                Vec3 to = new Vec3(e.getX(), e.getY(0.5 * k), e.getZ());
+                seen = level.clip(new ClipContext(at, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this)).getType()
+                    == HitResult.Type.MISS;
+            }
+            if (!seen) continue;
+            float dmg = (float) (CRACKER_BLAST * Math.sqrt((CRACKER_RADIUS - d) / CRACKER_RADIUS));
+            e.hurtServer(level, damageSources().explosion(this, owner), dmg);
+        }
+    }
     /** the U-turn's radius (wider for the Sniper-Rang) */
     private double turnRadius = TURN_RADIUS;
     /** Sniper-Rang: 4 damage within 8 blocks, rising to 12 at 56 blocks and beyond */
@@ -222,6 +255,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
         phaseTicks++;
         if (collectorLevel > 0) collect(level, owner);
+        if (live) level.sendParticles(net.minecraft.core.particles.ParticleTypes.FIREWORK, getX(), getY(), getZ(), 1, 0.05, 0.05, 0.05, 0.02);
         if (tidal && isInWater() && tickCount % 2 == 0)
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.BUBBLE, getX(), getY(), getZ(), 2, 0.1, 0.1, 0.1, 0.02);
         Vec3 pos = position();
@@ -257,7 +291,9 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 if (hit != null) {
                     if (hit instanceof EntityHitResult eh) {
                         if (sniper) damage = sniperDamage(thrownFrom.distanceTo(hit.getLocation()), sniperMax);
-                        strike(level, owner, eh.getEntity(), 1f);
+                        // a live Cracker-Rang's hit is the blast (the target is at its centre)
+                        if (live) explode(level, owner, hit.getLocation());
+                        else strike(level, owner, eh.getEntity(), 1f);
                         chainGroup = BoomerangChain.classify(eh.getEntity(), owner);
                         chainHit.add(eh.getEntity().getId());
                     }
@@ -272,6 +308,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                             : state.getSoundType().getBreakSound();
                         level.playSound(null, bh.getLocation().x, bh.getLocation().y, bh.getLocation().z,
                             sound, SoundSource.PLAYERS, IMPACT_VOLUME, 1.0f);
+                        if (live) explode(level, owner, bh.getLocation());
                     }
                     entityData.set(WHOOSH, false);
                     if (spendDurability(level, owner)) return;
@@ -584,8 +621,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     }
 
     private void missedCatch(ServerLevel level, Player owner) {
-        // it hits you exactly like it hits anything else: Power, Punch and all (user: stay consistent)
-        strike(level, owner, owner);
+        // it hits you exactly like it hits anything else: Power, Punch and all (user: stay consistent) - and a
+        // Cracker-Rang that hasn't gone off yet goes off on you
+        if (live) explode(level, owner, owner.getBoundingBox().getCenter());
+        else strike(level, owner, owner);
         owner.spawnAtLocation(level, getItem().copy());
         spillLoot(level, owner.position());
         discard();
@@ -605,6 +644,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         out.store("Item", ItemStack.OPTIONAL_CODEC, getItem());
         out.putBoolean("Tidal", tidal);
         out.putBoolean("Sniper", sniper);
+        out.putBoolean("Live", live);
         out.store("Carried", ItemStack.OPTIONAL_CODEC.listOf(), new java.util.ArrayList<>(carried));
         out.putInt("CarriedXp", carriedXp);
     }
@@ -617,6 +657,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         carriedXp = in.getIntOr("CarriedXp", 0);
         tidal = in.getBooleanOr("Tidal", false);
         sniper = in.getBooleanOr("Sniper", false);
+        live = in.getBooleanOr("Live", false);
         if (sniper) turnRadius = SNIPER_TURN;
         // a boomerang loaded from disk just comes home
         phase = RETURN;

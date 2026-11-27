@@ -23,7 +23,13 @@ public enum BoomerangTier {
      * and hits harder the farther it got: {@link BoomerangEntity#sniperDamage} (4 close, 12 at 56+ blocks; this 12 is
      * the most). Copper durability and enchantability.
      */
-    SNIPER("sniper_rang", 12f, 190, false, 13, false);
+    SNIPER("sniper_rang", 12f, 190, false, 13, false),
+    /**
+     * the Cracker-Rang (user's idea, art from both): a wooden boomerang with two firework rockets on it. Each throw
+     * eats 1 gunpowder and its first hit explodes like a 1-star firework (up to 7 within 5 blocks, no block damage,
+     * random colours); a missed catch while still live goes off on you. No gunpowder: a 3-damage dud.
+     */
+    CRACKER("cracker_rang", 3f, 100, false, 15, false);
 
     public final String id;
     public final float damage;
@@ -36,6 +42,10 @@ public enum BoomerangTier {
 
     public boolean sniper() {
         return this == SNIPER;
+    }
+
+    public boolean cracker() {
+        return this == CRACKER;
     }
 
     BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn, int enchantability) {
