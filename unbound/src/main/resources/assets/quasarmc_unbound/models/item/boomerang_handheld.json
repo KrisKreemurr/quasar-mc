@@ -3,8 +3,8 @@
   "display": {
     "thirdperson_righthand": {
       "rotation": [
-        0,
-        -82,
+        18,
+        -90,
         265
       ],
       "translation": [
@@ -20,8 +20,8 @@
     },
     "thirdperson_lefthand": {
       "rotation": [
-        0,
-        82,
+        18,
+        90,
         -265
       ],
       "translation": [
