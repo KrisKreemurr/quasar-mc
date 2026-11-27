@@ -15,7 +15,7 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 /**
  * A pair of Tidalrangs (user's perk): with one in <b>each</b> hand and in water, you swim like a fish - Dolphin's Grace
  * speed (the real effect, hidden and topped up each tick, so a dolphin's own buff doesn't stack with it) and Depth
- * Strider III on the sea floor. One Tidalrang does nothing; throw one and the perk is off until it's back in hand.
+ * Strider II on the sea floor (real Depth Strider III still beats it). One Tidalrang does nothing; throw one and the perk is off until it's back in hand.
  */
 public final class TidalSwim {
     private static final Identifier FLOOR = Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "tidal_pair");
@@ -38,8 +38,8 @@ public final class TidalSwim {
         boolean on = p.isInWater() && pair(p);
         AttributeInstance floor = p.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY);
         if (floor != null) {
-            // +1 tops the attribute out (it caps at 1): Depth Strider III, and no stacking with real Depth Strider
-            if (on) floor.addOrUpdateTransientModifier(new AttributeModifier(FLOOR, 1.0, AttributeModifier.Operation.ADD_VALUE));
+            // Depth Strider II (each level is +1/3); real Depth Strider III stays the best on the sea floor (the attribute caps at 1)
+            if (on) floor.addOrUpdateTransientModifier(new AttributeModifier(FLOOR, 2.0 / 3.0, AttributeModifier.Operation.ADD_VALUE));
             else if (floor.hasModifier(FLOOR)) floor.removeModifier(FLOOR);
         }
         if (on && !p.level().isClientSide()) {
