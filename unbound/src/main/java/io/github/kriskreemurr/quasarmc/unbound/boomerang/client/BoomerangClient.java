@@ -27,6 +27,10 @@ public final class BoomerangClient {
             public net.minecraft.client.model.HumanoidModel.ArmPose getArmPose(net.minecraft.world.entity.LivingEntity entity,
                     InteractionHand hand, net.minecraft.world.item.ItemStack stack) {
                 if (entity.isUsingItem() && entity.getUsedItemHand() == hand) return null;
+                // gliding: both boomerangs up overhead (you: by your jump key; others: airborne with two Glide boomerangs)
+                if (entity instanceof net.minecraft.world.entity.player.Player p
+                        && io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangGlide.gliding(p,
+                            p.isLocalPlayer() ? jumpHeld() : true)) return BoomerangArmPose.GLIDE.getValue();
                 return BoomerangArmPose.HOLD.getValue();
             }
         };
@@ -42,6 +46,11 @@ public final class BoomerangClient {
     public static void registerHud(RegisterGuiLayersEvent e) {
         e.registerAbove(VanillaGuiLayers.CROSSHAIR, Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "boomerang_catch"),
             BoomerangClient::drawPrompt);
+    }
+
+    /** jump held by the local player (Glide) */
+    public static boolean jumpHeld() {
+        return Minecraft.getInstance().options.keyJump.isDown();
     }
 
     /** the flying loop: follows the boomerang (mono, so it fades with distance) until its first hit */

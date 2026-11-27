@@ -8,5 +8,6 @@
   "item.quasarmc_unbound.netherite_boomerang": "Netherite Boomerang",
   "item.quasarmc_unbound.golden_boomerang": "Golden Boomerang",
   "entity.quasarmc_unbound.boomerang": "Boomerang",
-  "subtitles.quasarmc_unbound.boomerang.hit": "Boomerang hits"
+  "subtitles.quasarmc_unbound.boomerang.hit": "Boomerang hits",
+  "enchantment.quasarmc_unbound.glide": "Glide"
 }

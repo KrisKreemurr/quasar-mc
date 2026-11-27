@@ -8,6 +8,15 @@
         "class": "io/github/kriskreemurr/quasarmc/unbound/boomerang/client/BoomerangArmPose",
         "field": "HOLD"
       }
+    },
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "QUASARMC_UNBOUND_BOOMERANG_GLIDE",
+      "constructor": "(ZZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "io/github/kriskreemurr/quasarmc/unbound/boomerang/client/BoomerangArmPose",
+        "field": "GLIDE"
+      }
     }
   ]
 }

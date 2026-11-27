@@ -376,9 +376,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     }
 
     private void missedCatch(ServerLevel level, Player owner) {
-        owner.hurtServer(level, damageSources().thrown(this, owner), damage);
-        level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
-            HIT_VOLUME, 0.8f);
+        // it hits you exactly like it hits anything else: Power, Punch and all (user: stay consistent)
+        strike(level, owner, owner);
         owner.spawnAtLocation(level, getItem().copy());
         discard();
     }
