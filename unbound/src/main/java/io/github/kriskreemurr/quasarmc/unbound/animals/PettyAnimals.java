@@ -37,7 +37,8 @@ public final class PettyAnimals {
         }
     }
     private static final Map<EntityType<?>, Fight> FIGHTERS = Map.of(
-        EntityTypes.CHICKEN, new Fight(1.0, 0.0),
+        // everyone chases at their own panic sprint: chicken 1.4, pig and sheep 1.25 (the default), cow 2.0
+        EntityTypes.CHICKEN, new Fight(1.0, 0.0, 0f, 0f, 1.4, false),
         EntityTypes.SHEEP, new Fight(1.0, 0.3),
         EntityTypes.PIG, new Fight(2.0, 0.0),
         // cows charge: they chase at their panic sprint and leap into you at full speed (user, 2026-11-27)
