@@ -81,6 +81,13 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private int side = 1;
     private InteractionHand hand = InteractionHand.MAIN_HAND;
     private final Set<Integer> hitOnReturn = new HashSet<>();
+    /**
+     * Golden: it doesn't bounce off its first target, it cuts through and flies on ~3 blocks, then turns home back
+     * through the same target for the comeback hit (user, 2026-11-27: it used to bounce over the target, so the
+     * return almost never crossed it)
+     */
+    private Entity goldTarget;
+    private int pierceTicks;
     /** Multi-Target: bounces left, the first target's group, who was hit, the target it is flying to, bounces done */
     private int chainLeft, chainDone;
     private BoomerangChain.Group chainGroup;
@@ -265,6 +272,20 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 vel = getDeltaMovement();
         switch (phase) {
             case OUT -> {
+                if (pierceTicks > 0) {
+                    // golden: through the target and on a little, then home (back through it)
+                    pierceTicks--;
+                    Vec3 next = pos.add(vel);
+                    BlockHitResult wall = level.clip(new ClipContext(pos, next, ClipContext.Block.COLLIDER, fluidMode(), this));
+                    if (wall.getType() != HitResult.Type.MISS) next = wall.getLocation();
+                    move(next, vel);
+                    if (pierceTicks == 0 || wall.getType() != HitResult.Type.MISS) {
+                        phase = RETURN;
+                        phaseTicks = 0;
+                        noPhysics = true;
+                    }
+                    break;
+                }
                 if (straightFlown < straightLength) {
                     // the straight leg: exactly along the aim, like an arrow without the drop
                     straightFlown += vel.length();
@@ -321,6 +342,11 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     if (spendDurability(level, owner)) return;
                     setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
                     if (hit instanceof EntityHitResult && startChain(level)) return;
+                    if (hitsOnReturn && hit instanceof EntityHitResult ehg) {
+                        goldTarget = ehg.getEntity();
+                        pierceTicks = Math.max(1, (int) Math.ceil(3.0 / Math.max(0.5, vel.length())));
+                        break;
+                    }
                     // bounce off: up and back toward you, and off the face of a block (never on into what it hit)
                     Vec3 off = hit instanceof BlockHitResult bh2
                         ? Vec3.atLowerCornerOf(bh2.getDirection().getUnitVec3i()) : Vec3.ZERO;
@@ -416,6 +442,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 if (hitsOnReturn) {
                     HitResult hit = hitAlong(pos, pos.add(step), false);
                     if (hit instanceof EntityHitResult eh && hitOnReturn.add(eh.getEntity().getId())) {
+                        // the comeback through its first target lands even inside that target's half-second immunity
+                        if (eh.getEntity() == goldTarget) eh.getEntity().setInvulnerableTime(0);
                         strike(level, owner, eh.getEntity());
                     }
                 }
