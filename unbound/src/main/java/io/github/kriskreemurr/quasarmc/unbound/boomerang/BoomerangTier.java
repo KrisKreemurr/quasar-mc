@@ -17,7 +17,13 @@ public enum BoomerangTier {
      * the Tidalrang (user's): fish fins on a bone. The mirror of the others - it only flies underwater (head under) and
      * the water's surface is its wall; holding two makes you swim like a fish ({@link TidalSwim})
      */
-    TIDAL("tidalrang", 7f, 200, false, 12, true);
+    TIDAL("tidalrang", 7f, 200, false, 12, true),
+    /**
+     * the Sniper-Rang (user's): a spyglass on a copper boomerang. Zooms while winding up, flies straight up to 64 blocks,
+     * and hits harder the farther it got: {@link BoomerangEntity#sniperDamage} (4 close, 12 at 56+ blocks; this 12 is
+     * the most). Copper durability and enchantability.
+     */
+    SNIPER("sniper_rang", 12f, 190, false, 13, false);
 
     public final String id;
     public final float damage;
@@ -27,6 +33,10 @@ public enum BoomerangTier {
     public final int enchantability;
     /** only thrown underwater, and stays in the water (the Tidalrang); the others can't be thrown underwater */
     public final boolean underwater;
+
+    public boolean sniper() {
+        return this == SNIPER;
+    }
 
     BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn, int enchantability) {
         this(id, damage, durability, hitsOnReturn, enchantability, false);

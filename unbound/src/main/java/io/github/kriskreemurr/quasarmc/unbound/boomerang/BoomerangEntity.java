@@ -93,6 +93,19 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private boolean chainBlocked;
     /** a Tidalrang: flies through water, and the surface (or lava) is its wall */
     private boolean tidal;
+    /** a Sniper-Rang: long straight leg, wide turn, damage by distance from where it was thrown */
+    private boolean sniper;
+    private Vec3 thrownFrom = Vec3.ZERO;
+    private float sniperMax = 12f;
+    /** the U-turn's radius (wider for the Sniper-Rang) */
+    private double turnRadius = TURN_RADIUS;
+    /** Sniper-Rang: 4 damage within 8 blocks, rising to 12 at 56 blocks and beyond */
+    static final float SNIPER_MIN = 4f, SNIPER_NEAR = 8f, SNIPER_FAR = 56f, SNIPER_RANGE = 64f, SNIPER_TURN = 14f;
+
+    static float sniperDamage(double dist, float max) {
+        double t = Math.max(0, Math.min(1, (dist - SNIPER_NEAR) / (SNIPER_FAR - SNIPER_NEAR)));
+        return (float) (SNIPER_MIN + (max - SNIPER_MIN) * t);
+    }
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
     /** this throw's speed and straight-leg length (set by the wind-up) */
@@ -115,6 +128,14 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         e.straightLength = 8 + (STRAIGHT_BLOCKS - 8) * power;
         e.hitsOnReturn = tier.hitsOnReturn;
         e.tidal = tier.underwater;
+        if (tier.sniper()) {
+            // the reach is the wind-up's job (a flick can't fly far, so it can't hit hard); damage comes from distance
+            e.sniper = true;
+            e.straightLength = 8 + (SNIPER_RANGE - 8) * power;
+            e.turnRadius = SNIPER_TURN;
+            e.damage = SNIPER_MIN; // a missed catch with no hit: the close-range hit
+            e.sniperMax = tier.damage;
+        }
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? owner.getMainArm() : owner.getMainArm().getOpposite();
         e.side = arm == HumanoidArm.RIGHT ? 1 : -1;
         Vec3 look = owner.getLookAngle();
@@ -124,6 +145,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         // out of the throwing hand: a little to that side and below the eyes
         Vec3 start = owner.getEyePosition().add(right.scale(0.35 * e.side)).add(0, -0.25, 0).add(look.scale(0.3));
         e.setPos(start.x, start.y, start.z);
+        e.thrownFrom = start;
         e.setDeltaMovement(look.scale(e.outSpeed));
         e.startVy = look.y * e.outSpeed;
         e.chainLeft = BoomerangChain.level(level, stack);
@@ -222,7 +244,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                         circleAngle += 0.15;
                     }
                     else {
-                        double turn = outSpeed / TURN_RADIUS;
+                        double turn = outSpeed / turnRadius;
                         double a = turn * side;
                         double cos = Math.cos(a), sin = Math.sin(a);
                         circleAngle += turn;
@@ -235,6 +257,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 HitResult hit = hitAlong(pos, next, true);
                 if (hit != null) {
                     if (hit instanceof EntityHitResult eh) {
+                        if (sniper) damage = sniperDamage(thrownFrom.distanceTo(hit.getLocation()), sniperMax);
                         strike(level, owner, eh.getEntity(), 1f);
                         chainGroup = BoomerangChain.classify(eh.getEntity(), owner);
                         chainHit.add(eh.getEntity().getId());
@@ -582,6 +605,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         super.addAdditionalSaveData(out);
         out.store("Item", ItemStack.OPTIONAL_CODEC, getItem());
         out.putBoolean("Tidal", tidal);
+        out.putBoolean("Sniper", sniper);
         out.store("Carried", ItemStack.OPTIONAL_CODEC.listOf(), new java.util.ArrayList<>(carried));
         out.putInt("CarriedXp", carriedXp);
     }
@@ -593,6 +617,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         in.read("Carried", ItemStack.OPTIONAL_CODEC.listOf()).ifPresent(l -> { carried.clear(); carried.addAll(l); });
         carriedXp = in.getIntOr("CarriedXp", 0);
         tidal = in.getBooleanOr("Tidal", false);
+        sniper = in.getBooleanOr("Sniper", false);
+        if (sniper) turnRadius = SNIPER_TURN;
         // a boomerang loaded from disk just comes home
         phase = RETURN;
         noPhysics = true;

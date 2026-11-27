@@ -112,12 +112,27 @@ public final class BoomerangClient {
         String num = d == Math.floor(d) ? String.valueOf((int) d) : String.valueOf(d);
         lines.add(net.minecraft.network.chat.Component.empty());
         lines.add(net.minecraft.network.chat.Component.translatable(k + "thrown").withStyle(net.minecraft.ChatFormatting.GRAY));
-        lines.add(net.minecraft.network.chat.Component.translatable(k + "damage", num).withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
+        if (tier.sniper()) {
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "sniper_damage", (int) io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangEntity.SNIPER_MIN, num)
+                .withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "sniper").withStyle(net.minecraft.ChatFormatting.BLUE));
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "sniper_zoom").withStyle(net.minecraft.ChatFormatting.BLUE));
+        }
+        else lines.add(net.minecraft.network.chat.Component.translatable(k + "damage", num).withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
         if (tier.hitsOnReturn)
             lines.add(net.minecraft.network.chat.Component.translatable(k + "hits_on_return").withStyle(net.minecraft.ChatFormatting.BLUE));
         if (tier.underwater) {
             lines.add(net.minecraft.network.chat.Component.translatable(k + "underwater").withStyle(net.minecraft.ChatFormatting.BLUE));
             lines.add(net.minecraft.network.chat.Component.translatable(k + "tidal_pair").withStyle(net.minecraft.ChatFormatting.BLUE));
         }
+    }
+
+    /** Sniper-Rang: zoom in while winding up, to 2.5x at full power (the spyglass is 10x) */
+    public static void zoom(net.neoforged.neoforge.client.event.ComputeFovModifierEvent event) {
+        var p = event.getPlayer();
+        if (!p.isUsingItem() || !(p.getUseItem().getItem() instanceof io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangItem item)
+                || !item.tier.sniper()) return;
+        float t = Math.min(1f, p.getTicksUsingItem() / 15f);
+        event.setNewFovModifier(event.getNewFovModifier() * (1f - 0.6f * t));
     }
 }

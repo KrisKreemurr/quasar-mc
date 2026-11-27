@@ -38,6 +38,11 @@ public class QuasarUnboundClient {
     }
 
     @SubscribeEvent
+    static void onFov(net.neoforged.neoforge.client.event.ComputeFovModifierEvent event) {
+        io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.zoom(event);
+    }
+
+    @SubscribeEvent
     static void onUseKey(net.neoforged.neoforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
         io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.onUse(event);
     }
