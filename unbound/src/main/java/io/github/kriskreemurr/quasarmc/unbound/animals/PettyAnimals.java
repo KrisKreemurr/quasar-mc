@@ -19,7 +19,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 /**
  * Petty farm animals (user, 2026-11-27): chickens, sheep, pigs and cows stay neutral, but hit one and it fights back for
- * a few seconds with petty damage instead of panicking: chicken peck 1/2 heart, sheep headbutt ~1/2 heart with a small
+ * a few seconds with petty damage instead of panicking: chicken peck 1/2 heart, sheep headbutt 1/2 heart with a small
  * shove, pig 1 heart and a mini hoglin toss (up and back), cow 1 heart with Knockback I. Babies still run. They give
  * up after {@link #ANGRY_TICKS} or if you get away.
  */
@@ -28,7 +28,7 @@ public final class PettyAnimals {
     private record Fight(double damage, double knockback) {}
     private static final Map<EntityType<?>, Fight> FIGHTERS = Map.of(
         EntityTypes.CHICKEN, new Fight(1.0, 0.0),
-        EntityTypes.SHEEP, new Fight(1.5, 0.3),
+        EntityTypes.SHEEP, new Fight(1.0, 0.3),
         EntityTypes.PIG, new Fight(2.0, 0.0),
         EntityTypes.COW, new Fight(2.0, 1.0),
         EntityTypes.MOOSHROOM, new Fight(2.0, 1.0));
