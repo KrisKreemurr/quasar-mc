@@ -80,18 +80,24 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private final Set<Integer> hitOnReturn = new HashSet<>();
     /** distance flown straight, and how far round the U-turn it is (radians) */
     private double straightFlown, circleAngle, startVy;
+    /** this throw's speed and straight-leg length (set by the wind-up) */
+    private double outSpeed = OUT_SPEED, straightLength = STRAIGHT_BLOCKS;
 
     public BoomerangEntity(EntityType<? extends BoomerangEntity> type, Level level) {
         super(type, level);
     }
 
-    static BoomerangEntity thrown(ServerLevel level, Player owner, ItemStack stack, InteractionHand hand, BoomerangTier tier) {
+    static BoomerangEntity thrown(ServerLevel level, Player owner, ItemStack stack, InteractionHand hand, BoomerangTier tier,
+                                  float power) {
         BoomerangEntity e = new BoomerangEntity(Boomerangs.ENTITY.get(), level);
         e.setOwner(owner);
         e.setItem(stack);
         e.hand = hand;
         e.entityData.set(OFFHAND, hand == InteractionHand.OFF_HAND);
-        e.damage = tier.damage;
+        // wind-up power: a flick is short, slower and weaker; full power is the full capsule at full speed and damage
+        e.damage = tier.damage * (0.5f + 0.5f * power);
+        e.outSpeed = OUT_SPEED * (0.55 + 0.45 * power);
+        e.straightLength = 8 + (STRAIGHT_BLOCKS - 8) * power;
         e.hitsOnReturn = tier.hitsOnReturn;
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? owner.getMainArm() : owner.getMainArm().getOpposite();
         e.side = arm == HumanoidArm.RIGHT ? 1 : -1;
@@ -102,8 +108,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         // out of the throwing hand: a little to that side and below the eyes
         Vec3 start = owner.getEyePosition().add(right.scale(0.35 * e.side)).add(0, -0.25, 0).add(look.scale(0.3));
         e.setPos(start.x, start.y, start.z);
-        e.setDeltaMovement(look.scale(OUT_SPEED));
-        e.startVy = look.y * OUT_SPEED;
+        e.setDeltaMovement(look.scale(e.outSpeed));
+        e.startVy = look.y * e.outSpeed;
         return e;
     }
 
@@ -179,7 +185,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 vel = getDeltaMovement();
         switch (phase) {
             case OUT -> {
-                if (straightFlown < STRAIGHT_BLOCKS) {
+                if (straightFlown < straightLength) {
                     // the straight leg: exactly along the aim, like an arrow without the drop
                     straightFlown += vel.length();
                 }
@@ -191,16 +197,16 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                         // thrown (nearly) straight up or down: no heading to turn; let it level out first
                         vel = new Vec3(vel.x, vel.y * 0.8, vel.z);
                         Vec3 n = vel.lengthSqr() > 1e-6 ? vel.normalize() : new Vec3(0, 1, 0);
-                        vel = n.scale(OUT_SPEED);
+                        vel = n.scale(outSpeed);
                         circleAngle += 0.15;
                     }
                     else {
-                        double turn = OUT_SPEED / TURN_RADIUS;
+                        double turn = outSpeed / TURN_RADIUS;
                         double a = turn * side;
                         double cos = Math.cos(a), sin = Math.sin(a);
                         circleAngle += turn;
                         double vy = vel.y * 0.8;
-                        double hs = Math.sqrt(Math.max(0, OUT_SPEED * OUT_SPEED - vy * vy)) / h;
+                        double hs = Math.sqrt(Math.max(0, outSpeed * outSpeed - vy * vy)) / h;
                         vel = new Vec3((vel.x * cos - vel.z * sin) * hs, vy, (vel.x * sin + vel.z * cos) * hs);
                     }
                 }
