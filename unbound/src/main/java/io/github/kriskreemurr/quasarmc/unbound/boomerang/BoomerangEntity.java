@@ -53,6 +53,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     static final EntityDataAccessor<Boolean> WHOOSH = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
     /** impact sounds are played louder than normal so the thrower always hears them (range scales with volume) */
     private static final float IMPACT_VOLUME = 2.0f;
+    /** the punch sounds: 60% loudness (friends found them loud); their 32-block range comes from sounds.json */
+    private static final float HIT_VOLUME = 0.6f;
 
     private static final int OUT = 0, POP = 1, RETURN = 2;
     /** blocks per tick: along the circle 2.0 (40/s), homing back 1.6 (32/s) */
@@ -345,7 +347,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
         if (hurt) net.minecraft.world.item.enchantment.EnchantmentHelper.doPostAttackEffectsWithItemSource(level, target, source, weapon);
         level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
-            IMPACT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
+            HIT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
     }
 
     /** caught with an empty hand (server, from the catch payload) */
@@ -376,7 +378,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private void missedCatch(ServerLevel level, Player owner) {
         owner.hurtServer(level, damageSources().thrown(this, owner), damage);
         level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
-            IMPACT_VOLUME, 0.8f);
+            HIT_VOLUME, 0.8f);
         owner.spawnAtLocation(level, getItem().copy());
         discard();
     }
