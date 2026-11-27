@@ -32,8 +32,9 @@ import net.minecraft.world.phys.Vec3;
 /**
  * A thrown boomerang. Flight (server side; the client only interpolates and spins):
  * <ol>
- * <li>OUT: straight out of the throwing hand, curving toward that hand's side. A hit on anything (mob or block) or
- *     the end of its range ends it.</li>
+ * <li>OUT: a full circle, like a real boomerang: out of the throwing hand, turning steadily toward that hand's side,
+ *     about 48 blocks across (its far point), and round back toward you. Aimed up or down, it rises or dips and
+ *     comes back to the throwing height. A hit on anything (mob or block) ends the circle.</li>
  * <li>POP: a short upward arc.</li>
  * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
  *     away it dings, and from the ding it arrives no sooner than 1 s later (it slows down or lingers): the catch
@@ -52,12 +53,15 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private static final float IMPACT_VOLUME = 2.0f;
 
     private static final int OUT = 0, POP = 1, RETURN = 2;
-    /** blocks per tick: out 1.6 (32/s), back 1.1 (22/s) */
-    private static final double OUT_SPEED = 1.6, RETURN_SPEED = 1.1;
-    /** about 48 blocks out (1.5 s) */
-    private static final int OUT_TICKS = 30, POP_TICKS = 6;
-    /** horizontal turn per tick toward the throwing hand's side, degrees (about 40 degrees over the whole throw) */
-    private static final double CURVE_DEG = 1.3;
+    /** blocks per tick: along the circle 2.0 (40/s), homing back 1.6 (32/s) */
+    private static final double OUT_SPEED = 2.0, RETURN_SPEED = 1.6;
+    /** the circle's diameter: its far point is this far from where it was thrown */
+    private static final double CIRCLE_DIAMETER = 48;
+    /** after this much of the circle (in turns) it homes in on you for the last stretch (you may have moved) */
+    private static final double CIRCLE_HOME_AT = 0.72;
+    private static final int POP_TICKS = 6;
+    /** how sharply it can turn toward you while homing (fraction of the way per tick) */
+    private static final double HOMING_TURN = 0.25;
     /** the ding comes at least this many ticks before arrival (1 s) */
     private static final int CATCH_TICKS = 20;
     /** ...and the catch itself is only possible in the last this-many ticks (0.4 s) */
@@ -74,6 +78,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private int side = 1;
     private InteractionHand hand = InteractionHand.MAIN_HAND;
     private final Set<Integer> hitOnReturn = new HashSet<>();
+    /** how far round the circle it is (radians), and its vertical speed at the start */
+    private double circleAngle, startVy;
 
     public BoomerangEntity(EntityType<? extends BoomerangEntity> type, Level level) {
         super(type, level);
@@ -96,6 +102,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 start = owner.getEyePosition().add(right.scale(0.35 * e.side)).add(0, -0.25, 0).add(look.scale(0.3));
         e.setPos(start.x, start.y, start.z);
         e.setDeltaMovement(look.scale(OUT_SPEED));
+        e.startVy = look.y * OUT_SPEED;
         return e;
     }
 
@@ -156,10 +163,15 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 vel = getDeltaMovement();
         switch (phase) {
             case OUT -> {
-                // curve toward the throwing hand's side (horizontal turn)
-                double a = Math.toRadians(CURVE_DEG) * side;
+                // the circle: turn the horizontal heading at a constant rate (speed / radius) toward the throwing
+                // hand's side; the vertical speed follows cos(angle), so it rises (or dips) and returns to the
+                // throwing height over the full turn
+                double h = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+                double turn = Math.max(h, 0.4) / (CIRCLE_DIAMETER / 2);
+                double a = turn * side;
                 double cos = Math.cos(a), sin = Math.sin(a);
-                vel = new Vec3(vel.x * cos - vel.z * sin, vel.y, vel.x * sin + vel.z * cos);
+                circleAngle += turn;
+                vel = new Vec3(vel.x * cos - vel.z * sin, startVy * Math.cos(circleAngle), vel.x * sin + vel.z * cos);
                 Vec3 next = pos.add(vel);
                 HitResult hit = hitAlong(pos, next, true);
                 if (hit != null) {
@@ -177,7 +189,12 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 }
                 else {
                     move(next, vel);
-                    if (phaseTicks >= OUT_TICKS) startPop(vel);
+                    if (circleAngle >= CIRCLE_HOME_AT * 2 * Math.PI) {
+                        // last stretch of the circle: home in on wherever you are now
+                        phase = RETURN;
+                        phaseTicks = 0;
+                        noPhysics = true;
+                    }
                 }
             }
             case POP -> {
@@ -211,7 +228,16 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     missedCatch(level, owner);
                     return;
                 }
-                Vec3 step = dist < 1e-6 ? Vec3.ZERO : to.scale(Math.min(speed, dist) / dist);
+                // steer toward you (a smooth homing curve, not a snap), at the speed worked out above
+                Vec3 step;
+                if (dist < 1e-6) step = Vec3.ZERO;
+                else {
+                    Vec3 want = to.scale(1 / dist);
+                    Vec3 cur = vel.lengthSqr() > 1e-8 ? vel.normalize() : want;
+                    Vec3 dir = cur.add(want.subtract(cur).scale(HOMING_TURN));
+                    if (dir.lengthSqr() < 1e-8 || dist < 3) dir = want;
+                    step = dir.normalize().scale(Math.min(speed, dist));
+                }
                 if (hitsOnReturn) {
                     HitResult hit = hitAlong(pos, pos.add(step), false);
                     if (hit instanceof EntityHitResult eh && hitOnReturn.add(eh.getEntity().getId())) {
