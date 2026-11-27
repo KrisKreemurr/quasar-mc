@@ -39,7 +39,7 @@ public final class Boomerangs {
     public static final Supplier<EntityType<BoomerangEntity>> ENTITY = ENTITIES.register("boomerang",
             id -> EntityType.Builder.<BoomerangEntity>of(BoomerangEntity::new, MobCategory.MISC)
                     .sized(0.5f, 0.5f)
-                    .clientTrackingRange(4)
+                    .clientTrackingRange(8)
                     .updateInterval(1)
                     .noSummon()
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));

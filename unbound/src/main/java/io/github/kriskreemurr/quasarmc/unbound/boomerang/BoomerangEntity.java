@@ -52,16 +52,20 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private static final float IMPACT_VOLUME = 2.0f;
 
     private static final int OUT = 0, POP = 1, RETURN = 2;
-    /** blocks per tick: out 1.2 (24/s), back 0.75 (15/s) */
-    private static final double OUT_SPEED = 1.2, RETURN_SPEED = 0.75;
-    /** about 16 blocks out */
-    private static final int OUT_TICKS = 14, POP_TICKS = 6;
-    /** horizontal turn per tick toward the throwing hand's side, degrees */
-    private static final double CURVE_DEG = 2.5;
-    /** the catch window: ding to arrival, at least this many ticks */
+    /** blocks per tick: out 1.6 (32/s), back 1.1 (22/s) */
+    private static final double OUT_SPEED = 1.6, RETURN_SPEED = 1.1;
+    /** about 48 blocks out (1.5 s) */
+    private static final int OUT_TICKS = 30, POP_TICKS = 6;
+    /** horizontal turn per tick toward the throwing hand's side, degrees (about 40 degrees over the whole throw) */
+    private static final double CURVE_DEG = 1.3;
+    /** the ding comes at least this many ticks before arrival (1 s) */
     private static final int CATCH_TICKS = 20;
+    /** ...and the catch itself is only possible in the last this-many ticks (0.4 s) */
+    private static final int WINDOW_TICKS = 8;
     /** given up on (owner gone or too far): dropped where it is */
-    private static final double MAX_OWNER_DIST = 64;
+    private static final double MAX_OWNER_DIST = 96;
+    /** durability is spent on the first impact of a throw (a throw that hits nothing costs nothing) */
+    private boolean spent;
 
     private int phase = OUT, phaseTicks, dingTick = -1;
     private float damage = 5f;
@@ -153,7 +157,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         switch (phase) {
             case OUT -> {
                 // curve toward the throwing hand's side (horizontal turn)
-                double a = Math.toRadians(CURVE_DEG) * -side;
+                double a = Math.toRadians(CURVE_DEG) * side;
                 double cos = Math.cos(a), sin = Math.sin(a);
                 vel = new Vec3(vel.x * cos - vel.z * sin, vel.y, vel.x * sin + vel.z * cos);
                 Vec3 next = pos.add(vel);
@@ -167,6 +171,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                             state.getSoundType().getBreakSound(), SoundSource.PLAYERS, IMPACT_VOLUME, 1.0f);
                     }
                     entityData.set(WHOOSH, false);
+                    if (spendDurability(level, owner)) return;
                     setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
                     startPop(vel);
                 }
@@ -188,9 +193,11 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 target = owner.getEyePosition().add(0, -0.3, 0);
                 Vec3 to = target.subtract(pos);
                 double dist = to.length();
+                if (dingTick >= 0 && !catchWindow() && tickCount - dingTick >= CATCH_TICKS - WINDOW_TICKS) {
+                    entityData.set(WINDOW, true);
+                }
                 if (dingTick < 0 && dist / RETURN_SPEED <= CATCH_TICKS) {
                     dingTick = tickCount;
-                    entityData.set(WINDOW, true);
                     level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), SoundEvents.NOTE_BLOCK_BELL.value(),
                         SoundSource.PLAYERS, 0.9f, 1.8f);
                 }
@@ -261,6 +268,21 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.7f, 1.1f);
         discard();
         return true;
+    }
+
+    /** one durability on the first impact of a throw; true if the boomerang broke (it is then gone) */
+    private boolean spendDurability(ServerLevel level, Player owner) {
+        if (spent) return false;
+        spent = true;
+        ItemStack stack = getItem().copy();
+        stack.hurtAndBreak(1, level, owner instanceof net.minecraft.server.level.ServerPlayer sp ? sp : null, item -> {});
+        if (stack.isEmpty()) {
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0f, 1.0f);
+            discard();
+            return true;
+        }
+        setItem(stack);
+        return false;
     }
 
     private void missedCatch(ServerLevel level, Player owner) {

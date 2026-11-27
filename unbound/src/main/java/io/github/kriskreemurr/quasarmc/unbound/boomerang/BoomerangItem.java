@@ -28,9 +28,8 @@ public class BoomerangItem extends Item {
         if (BoomerangEntity.inFlightFor(level, player) != null) return InteractionResult.FAIL;
         ItemStack stack = player.getItemInHand(hand);
         if (level instanceof ServerLevel server) {
+            // durability is spent when it hits something, not on the throw (BoomerangEntity)
             ItemStack thrown = stack.copyWithCount(1);
-            // one durability per throw (a boomerang on its last point breaks as it leaves your hand)
-            thrown.hurtAndBreak(1, server, null, item -> {});
             stack.shrink(1);
             if (!thrown.isEmpty()) {
                 BoomerangEntity e = BoomerangEntity.thrown(server, player, thrown, hand, tier);
