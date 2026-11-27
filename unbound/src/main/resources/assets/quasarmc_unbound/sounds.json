@@ -1,0 +1,18 @@
+{
+  "boomerang.flying": {
+    "sounds": [
+      {
+        "name": "quasarmc_unbound:boomerang/flying",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "boomerang.hit_entity": {
+    "subtitle": "subtitles.quasarmc_unbound.boomerang.hit",
+    "sounds": [
+      "quasarmc_unbound:boomerang/hit_entity1",
+      "quasarmc_unbound:boomerang/hit_entity2",
+      "quasarmc_unbound:boomerang/hit_entity3"
+    ]
+  }
+}

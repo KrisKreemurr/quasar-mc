@@ -46,6 +46,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     static final EntityDataAccessor<ItemStack> ITEM = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.ITEM_STACK);
     /** catch window open (dinged, not arrived): drives the client's catch check and HUD prompt */
     static final EntityDataAccessor<Boolean> WINDOW = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
+    /** still whooshing: the flying sound loops until the boomerang first hits something */
+    static final EntityDataAccessor<Boolean> WHOOSH = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
+    /** impact sounds are played louder than normal so the thrower always hears them (range scales with volume) */
+    private static final float IMPACT_VOLUME = 2.0f;
 
     private static final int OUT = 0, POP = 1, RETURN = 2;
     /** blocks per tick: out 1.2 (24/s), back 0.75 (15/s) */
@@ -103,6 +107,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(ITEM, ItemStack.EMPTY);
         builder.define(WINDOW, false);
+        builder.define(WHOOSH, true);
     }
 
     @Override
@@ -118,10 +123,23 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         return entityData.get(WINDOW);
     }
 
+    public boolean whooshing() {
+        return entityData.get(WHOOSH);
+    }
+
+    private boolean loopStarted;
+
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide()) return; // position comes from the server; the renderer spins it
+        if (level().isClientSide()) {
+            // position comes from the server; the renderer spins it. The flying loop follows it until the first hit.
+            if (!loopStarted && whooshing()) {
+                loopStarted = true;
+                io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.startFlyingSound(this);
+            }
+            return;
+        }
         ServerLevel level = (ServerLevel) level();
         Entity ownerEntity = getOwner();
         if (!(ownerEntity instanceof Player owner) || !owner.isAlive() || owner.level() != level
@@ -142,7 +160,13 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 HitResult hit = hitAlong(pos, next, true);
                 if (hit != null) {
                     if (hit instanceof EntityHitResult eh) strike(level, owner, eh.getEntity());
-                    else level.playSound(null, getX(), getY(), getZ(), SoundEvents.TRIDENT_HIT_GROUND, SoundSource.PLAYERS, 0.6f, 1.4f);
+                    else if (hit instanceof BlockHitResult bh) {
+                        // the block's own break sound: you hear what it hit
+                        var state = level.getBlockState(bh.getBlockPos());
+                        level.playSound(null, bh.getLocation().x, bh.getLocation().y, bh.getLocation().z,
+                            state.getSoundType().getBreakSound(), SoundSource.PLAYERS, IMPACT_VOLUME, 1.0f);
+                    }
+                    entityData.set(WHOOSH, false);
                     setPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
                     startPop(vel);
                 }
@@ -226,7 +250,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
 
     private void strike(ServerLevel level, Player owner, Entity target) {
         target.hurtServer(level, damageSources().thrown(this, owner), damage);
-        level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.8f, 1.3f);
+        level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
+            IMPACT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
     }
 
     /** caught with an empty hand (server, from the catch payload) */
@@ -240,6 +265,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
 
     private void missedCatch(ServerLevel level, Player owner) {
         owner.hurtServer(level, damageSources().thrown(this, owner), damage);
+        level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
+            IMPACT_VOLUME, 0.8f);
         owner.spawnAtLocation(level, getItem().copy());
         discard();
     }

@@ -29,6 +29,11 @@ public final class BoomerangClient {
             BoomerangClient::drawPrompt);
     }
 
+    /** the flying loop: follows the boomerang (mono, so it fades with distance) until its first hit */
+    public static void startFlyingSound(BoomerangEntity b) {
+        Minecraft.getInstance().getSoundManager().play(new BoomerangFlyingSound(b));
+    }
+
     /** your boomerang with its catch window open, or null */
     static BoomerangEntity catchable() {
         Minecraft mc = Minecraft.getInstance();

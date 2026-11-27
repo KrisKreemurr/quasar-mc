@@ -26,6 +26,16 @@ public final class Boomerangs {
 
     public static final Map<BoomerangTier, Supplier<Item>> ITEM = new EnumMap<>(BoomerangTier.class);
 
+    private static final DeferredRegister<net.minecraft.sounds.SoundEvent> SOUNDS =
+            DeferredRegister.create(Registries.SOUND_EVENT, QuasarUnbound.MODID);
+    /** the user's sounds (sources in assets/quasarmc_unbound/sounds/boomerang/SOURCES.md) */
+    public static final Supplier<net.minecraft.sounds.SoundEvent> FLYING = sound("boomerang.flying");
+    public static final Supplier<net.minecraft.sounds.SoundEvent> HIT_ENTITY = sound("boomerang.hit_entity");
+
+    private static Supplier<net.minecraft.sounds.SoundEvent> sound(String name) {
+        return SOUNDS.register(name, id -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(id));
+    }
+
     public static final Supplier<EntityType<BoomerangEntity>> ENTITY = ENTITIES.register("boomerang",
             id -> EntityType.Builder.<BoomerangEntity>of(BoomerangEntity::new, MobCategory.MISC)
                     .sized(0.5f, 0.5f)
@@ -50,6 +60,7 @@ public final class Boomerangs {
     public static void register(IEventBus modBus) {
         ITEMS.register(modBus);
         ENTITIES.register(modBus);
+        SOUNDS.register(modBus);
         modBus.addListener(BuildCreativeModeTabContentsEvent.class, e -> {
             if (e.getTabKey() == CreativeModeTabs.COMBAT) {
                 for (BoomerangTier tier : BoomerangTier.values()) e.accept(ITEM.get(tier).get());
