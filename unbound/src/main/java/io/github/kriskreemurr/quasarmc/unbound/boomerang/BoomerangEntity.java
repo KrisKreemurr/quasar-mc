@@ -256,7 +256,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
             }
             case CHAIN -> {
                 Entity t = chainTarget;
-                if (t == null || t.isRemoved() || !t.isAlive() || t.distanceToSqr(this) > 16 * 16 || phaseTicks > 40) {
+                if (t == null || t.isRemoved() || !t.isAlive() || t.distanceToSqr(this) > 24 * 24 || phaseTicks > 40) {
                     startPop(owner, Vec3.ZERO);
                     break;
                 }

@@ -30,7 +30,7 @@ public final class BoomerangChain {
     public static final ResourceKey<Enchantment> MULTI_TARGET =
         ResourceKey.create(Registries.ENCHANTMENT, Identifier.fromNamespaceAndPath(QuasarUnbound.MODID, "multi_target"));
     /** how far it looks for the next target, blocks */
-    public static final double RANGE = 6;
+    public static final double RANGE = 16;
     /** damage of each bounce relative to the hit before it */
     public static final float FALLOFF = 0.8f;
 
