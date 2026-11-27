@@ -34,6 +34,7 @@ public class QuasarUnbound {
         HoeCombat.register(NeoForge.EVENT_BUS);
         Sanity.register(modEventBus);
         io.github.kriskreemurr.quasarmc.unbound.boomerang.Boomerangs.register(modEventBus);
+        io.github.kriskreemurr.quasarmc.unbound.animals.PettyAnimals.register(modEventBus);
         LOGGER.info("Quasar Unbound loaded");
     }
 }
