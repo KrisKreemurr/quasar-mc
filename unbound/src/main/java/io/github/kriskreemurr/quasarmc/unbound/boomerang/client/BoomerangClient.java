@@ -98,4 +98,26 @@ public final class BoomerangClient {
         int x = g.guiWidth() / 2, y = g.guiHeight() / 2 + 12;
         g.centeredText(mc.font, text, x, y, hasEmptyHand ? 0xFFFFE070 : 0xFFFF7060);
     }
+
+    /**
+     * The numbers, vanilla-weapon style: "When Thrown:" and the hit damage (full wind-up, before Power), plus what makes
+     * a special one special
+     */
+    public static void tooltip(net.neoforged.neoforge.event.entity.player.ItemTooltipEvent event) {
+        if (!(event.getItemStack().getItem() instanceof io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangItem item)) return;
+        var tier = item.tier;
+        var lines = event.getToolTip();
+        String k = "tooltip.quasarmc_unbound.boomerang.";
+        float d = tier.damage;
+        String num = d == Math.floor(d) ? String.valueOf((int) d) : String.valueOf(d);
+        lines.add(net.minecraft.network.chat.Component.empty());
+        lines.add(net.minecraft.network.chat.Component.translatable(k + "thrown").withStyle(net.minecraft.ChatFormatting.GRAY));
+        lines.add(net.minecraft.network.chat.Component.translatable(k + "damage", num).withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
+        if (tier.hitsOnReturn)
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "hits_on_return").withStyle(net.minecraft.ChatFormatting.BLUE));
+        if (tier.underwater) {
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "underwater").withStyle(net.minecraft.ChatFormatting.BLUE));
+            lines.add(net.minecraft.network.chat.Component.translatable(k + "tidal_pair").withStyle(net.minecraft.ChatFormatting.BLUE));
+        }
+    }
 }

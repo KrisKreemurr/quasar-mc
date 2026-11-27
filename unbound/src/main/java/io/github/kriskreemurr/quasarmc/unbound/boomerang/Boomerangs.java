@@ -65,7 +65,13 @@ public final class Boomerangs {
         SOUNDS.register(modBus);
         modBus.addListener(BuildCreativeModeTabContentsEvent.class, e -> {
             if (e.getTabKey() == CreativeModeTabs.COMBAT) {
-                for (BoomerangTier tier : BoomerangTier.values()) e.accept(ITEM.get(tier).get());
+                // right after the spears (another thrown/reach weapon), in tier order
+                net.minecraft.world.item.ItemStack after = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.NETHERITE_SPEAR);
+                for (BoomerangTier tier : BoomerangTier.values()) {
+                    net.minecraft.world.item.ItemStack s = new net.minecraft.world.item.ItemStack(ITEM.get(tier).get());
+                    e.insertAfter(after, s, net.minecraft.world.item.CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS);
+                    after = s;
+                }
             }
         });
         modBus.addListener(RegisterPayloadHandlersEvent.class, e -> e.registrar("1")
