@@ -37,8 +37,8 @@ import net.minecraft.world.phys.Vec3;
  *     ends it.</li>
  * <li>POP: a short upward arc.</li>
  * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
- *     away it paces itself to arrive no sooner than 1 s later (slowing down or lingering); in the last 0.4 s it
- *     dings, and the ding is the catch window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
+ *     away... it comes back at full speed; 0.5 s out it dings and paces itself to arrive exactly 0.5 s later: the
+ *     ding is the catch window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
  *     own damage and drops at your feet.</li>
  * </ol>
  * Normal boomerangs hit one target, on the way out. Golden ones also hit on the way back (each target once).
@@ -62,10 +62,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private static final int POP_TICKS = 6;
     /** how sharply it can turn toward you while homing (fraction of the way per tick) */
     private static final double HOMING_TURN = 0.25;
-    /** the ding comes at least this many ticks before arrival (1 s) */
-    private static final int CATCH_TICKS = 20;
-    /** ...and the catch itself is only possible in the last this-many ticks (0.4 s) */
-    private static final int WINDOW_TICKS = 8;
+    /** the catch window: from the ding to arrival, exactly this many ticks (0.5 s) */
+    private static final int WINDOW_TICKS = 10;
     /** given up on (owner gone or too far): dropped where it is */
     private static final double MAX_OWNER_DIST = 96;
     /** durability is spent on the first impact of a throw (a throw that hits nothing costs nothing) */
@@ -229,24 +227,21 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 target = owner.getEyePosition().add(0, -0.3, 0);
                 Vec3 to = target.subtract(pos);
                 double dist = to.length();
-                // pacing: from 1 s out it arrives no sooner than 1 s later (slows down or lingers), so the catch
-                // window below always gets its full length
-                if (dingTick < 0 && dist / RETURN_SPEED <= CATCH_TICKS) dingTick = tickCount;
+                // full speed home; once the catch window opens (ding) it paces itself to arrive exactly
+                // WINDOW_TICKS later, so the window always gets its full length - and a point-blank return is quick
+                // instead of lingering for a whole second
                 double speed = RETURN_SPEED;
-                if (dingTick >= 0) {
-                    int left = Math.max(1, CATCH_TICKS - (tickCount - dingTick));
-                    speed = Math.min(RETURN_SPEED, dist / left);
-                }
-                // the ding IS the catch window: it plays the moment the window (and the "Catch!" prompt) opens, in
-                // the last WINDOW_TICKS before it reaches you (by its real remaining distance, so running away from
-                // it doesn't open the window early)
-                if (dingTick >= 0 && !catchWindow() && tickCount - dingTick >= CATCH_TICKS - WINDOW_TICKS
-                        && dist / Math.max(speed, 1e-3) <= WINDOW_TICKS + 1) {
+                if (!catchWindow() && dist / RETURN_SPEED <= WINDOW_TICKS) {
                     entityData.set(WINDOW, true);
+                    dingTick = tickCount;
                     level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), SoundEvents.NOTE_BLOCK_BELL.value(),
                         SoundSource.PLAYERS, 1.0f, 1.8f);
                 }
-                if (dist < 0.6 && catchWindow() && tickCount - dingTick >= CATCH_TICKS) {
+                if (catchWindow()) {
+                    int left = Math.max(1, WINDOW_TICKS - (tickCount - dingTick));
+                    speed = Math.min(RETURN_SPEED, dist / left);
+                }
+                if (dist < 0.6 && catchWindow() && tickCount - dingTick >= WINDOW_TICKS) {
                     missedCatch(level, owner);
                     return;
                 }
