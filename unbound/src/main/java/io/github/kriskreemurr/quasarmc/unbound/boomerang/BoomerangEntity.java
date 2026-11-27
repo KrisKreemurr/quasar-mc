@@ -237,11 +237,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                     // hand's side, levelling out (the homing brings it back to your height)
                     double h = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
                     if (h < 0.4) {
-                        // thrown (nearly) straight up or down: no heading to turn; let it level out first
-                        vel = new Vec3(vel.x, vel.y * 0.8, vel.z);
-                        Vec3 n = vel.lengthSqr() > 1e-6 ? vel.normalize() : new Vec3(0, 1, 0);
-                        vel = n.scale(outSpeed);
-                        circleAngle += 0.15;
+                        // thrown (nearly) straight up or down: there's no heading to turn, and "levelling out" used
+                        // to keep it climbing at full speed (a 64-block Sniper-Rang throw went past the 96-block
+                        // give-up distance and dropped). Turn for home right away: the homing curve brings it back.
+                        circleAngle = TURN_HOME_AT;
                     }
                     else {
                         double turn = outSpeed / turnRadius;
