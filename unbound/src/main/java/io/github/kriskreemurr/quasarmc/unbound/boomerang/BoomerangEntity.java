@@ -294,9 +294,13 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 if (hit != null) {
                     if (hit instanceof EntityHitResult eh) {
                         if (sniper) damage = sniperDamage(thrownFrom.distanceTo(hit.getLocation()), sniperMax);
-                        // a live Cracker-Rang's hit is the blast (the target is at its centre)
-                        if (live) explode(level, owner, hit.getLocation());
-                        else strike(level, owner, eh.getEntity(), 1f);
+                        strike(level, owner, eh.getEntity(), 1f);
+                        if (live) {
+                            // a live Cracker-Rang hits AND blows up: the impact's damage-immunity window (vanilla's
+                            // half second after any hit) would swallow most of the blast, so the target is open again
+                            eh.getEntity().invulnerableTime = 0;
+                            explode(level, owner, hit.getLocation());
+                        }
                         chainGroup = BoomerangChain.classify(eh.getEntity(), owner);
                         chainHit.add(eh.getEntity().getId());
                     }
