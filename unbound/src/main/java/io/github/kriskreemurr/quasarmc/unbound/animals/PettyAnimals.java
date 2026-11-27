@@ -3,6 +3,7 @@ package io.github.kriskreemurr.quasarmc.unbound.animals;
 import java.util.Map;
 
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -26,11 +27,11 @@ public final class PettyAnimals {
     /** damage (half-hearts) and knockback per type */
     private record Fight(double damage, double knockback) {}
     private static final Map<EntityType<?>, Fight> FIGHTERS = Map.of(
-        EntityType.CHICKEN, new Fight(1.0, 0.0),
-        EntityType.SHEEP, new Fight(1.5, 0.3),
-        EntityType.PIG, new Fight(2.0, 0.0),
-        EntityType.COW, new Fight(2.0, 1.0),
-        EntityType.MOOSHROOM, new Fight(2.0, 1.0));
+        EntityTypes.CHICKEN, new Fight(1.0, 0.0),
+        EntityTypes.SHEEP, new Fight(1.5, 0.3),
+        EntityTypes.PIG, new Fight(2.0, 0.0),
+        EntityTypes.COW, new Fight(2.0, 1.0),
+        EntityTypes.MOOSHROOM, new Fight(2.0, 1.0));
     /** how long one stays angry after being hit (5 s) */
     private static final int ANGRY_TICKS = 100;
     /** it gives up if you get further away than this */
@@ -63,12 +64,12 @@ public final class PettyAnimals {
         });
         // the pig's tusk-less hoglin toss: a little up and back
         NeoForge.EVENT_BUS.addListener(LivingDamageEvent.Post.class, e -> {
-            if (e.getSource().getDirectEntity() instanceof PathfinderMob pig && pig.getType() == EntityType.PIG) {
+            if (e.getSource().getDirectEntity() instanceof PathfinderMob pig && pig.getType() == EntityTypes.PIG) {
                 LivingEntity target = e.getEntity();
                 Vec3 away = target.position().subtract(pig.position()).multiply(1, 0, 1);
                 away = away.lengthSqr() > 1e-6 ? away.normalize().scale(0.3) : Vec3.ZERO;
                 target.push(away.x, 0.45, away.z);
-                target.hurtMarked = true;
+                target.needsSync = true; // send the new motion to the client
             }
         });
     }
