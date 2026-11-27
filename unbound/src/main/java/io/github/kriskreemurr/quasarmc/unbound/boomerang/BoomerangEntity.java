@@ -32,9 +32,9 @@ import net.minecraft.world.phys.Vec3;
 /**
  * A thrown boomerang. Flight (server side; the client only interpolates and spins):
  * <ol>
- * <li>OUT: a full circle, like a real boomerang: out of the throwing hand, turning steadily toward that hand's side,
- *     about 48 blocks across (its far point), and round back toward you. Aimed up or down, it rises or dips and
- *     comes back to the throwing height. A hit on anything (mob or block) ends the circle.</li>
+ * <li>OUT: a capsule: straight along your crosshair (up or down too) for about 32 blocks, so you hit what you aim
+ *     at, then a tight U-turn toward the throwing hand's side, then it homes back. A hit on anything (mob or block)
+ *     ends it.</li>
  * <li>POP: a short upward arc.</li>
  * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
  *     away it paces itself to arrive no sooner than 1 s later (slowing down or lingering); in the last 0.4 s it
@@ -55,10 +55,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private static final int OUT = 0, POP = 1, RETURN = 2;
     /** blocks per tick: along the circle 2.0 (40/s), homing back 1.6 (32/s) */
     private static final double OUT_SPEED = 2.0, RETURN_SPEED = 1.6;
-    /** the circle's diameter: its far point is this far from where it was thrown */
-    private static final double CIRCLE_DIAMETER = 48;
-    /** after this much of the circle (in turns) it homes in on you for the last stretch (you may have moved) */
-    private static final double CIRCLE_HOME_AT = 0.72;
+    /** the capsule: straight this far along the aim, then a U-turn of this radius toward the hand's side */
+    private static final double STRAIGHT_BLOCKS = 32, TURN_RADIUS = 8;
+    /** after turning this far (radians) it homes in on you (you may have moved) */
+    private static final double TURN_HOME_AT = Math.PI * 0.85;
     private static final int POP_TICKS = 6;
     /** how sharply it can turn toward you while homing (fraction of the way per tick) */
     private static final double HOMING_TURN = 0.25;
@@ -78,8 +78,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     private int side = 1;
     private InteractionHand hand = InteractionHand.MAIN_HAND;
     private final Set<Integer> hitOnReturn = new HashSet<>();
-    /** how far round the circle it is (radians), and its vertical speed at the start */
-    private double circleAngle, startVy;
+    /** distance flown straight, and how far round the U-turn it is (radians) */
+    private double straightFlown, circleAngle, startVy;
 
     public BoomerangEntity(EntityType<? extends BoomerangEntity> type, Level level) {
         super(type, level);
@@ -163,15 +163,31 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         Vec3 vel = getDeltaMovement();
         switch (phase) {
             case OUT -> {
-                // the circle: turn the horizontal heading at a constant rate (speed / radius) toward the throwing
-                // hand's side; the vertical speed follows cos(angle), so it rises (or dips) and returns to the
-                // throwing height over the full turn
-                double h = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-                double turn = Math.max(h, 0.4) / (CIRCLE_DIAMETER / 2);
-                double a = turn * side;
-                double cos = Math.cos(a), sin = Math.sin(a);
-                circleAngle += turn;
-                vel = new Vec3(vel.x * cos - vel.z * sin, startVy * Math.cos(circleAngle), vel.x * sin + vel.z * cos);
+                if (straightFlown < STRAIGHT_BLOCKS) {
+                    // the straight leg: exactly along the aim, like an arrow without the drop
+                    straightFlown += vel.length();
+                }
+                else {
+                    // the U-turn: turn the horizontal heading at a constant rate (speed / radius) toward the throwing
+                    // hand's side, levelling out (the homing brings it back to your height)
+                    double h = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+                    if (h < 0.4) {
+                        // thrown (nearly) straight up or down: no heading to turn; let it level out first
+                        vel = new Vec3(vel.x, vel.y * 0.8, vel.z);
+                        Vec3 n = vel.lengthSqr() > 1e-6 ? vel.normalize() : new Vec3(0, 1, 0);
+                        vel = n.scale(OUT_SPEED);
+                        circleAngle += 0.15;
+                    }
+                    else {
+                        double turn = OUT_SPEED / TURN_RADIUS;
+                        double a = turn * side;
+                        double cos = Math.cos(a), sin = Math.sin(a);
+                        circleAngle += turn;
+                        double vy = vel.y * 0.8;
+                        double hs = Math.sqrt(Math.max(0, OUT_SPEED * OUT_SPEED - vy * vy)) / h;
+                        vel = new Vec3((vel.x * cos - vel.z * sin) * hs, vy, (vel.x * sin + vel.z * cos) * hs);
+                    }
+                }
                 Vec3 next = pos.add(vel);
                 HitResult hit = hitAlong(pos, next, true);
                 if (hit != null) {
@@ -192,7 +208,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 }
                 else {
                     move(next, vel);
-                    if (circleAngle >= CIRCLE_HOME_AT * 2 * Math.PI) {
+                    if (circleAngle >= TURN_HOME_AT) {
                         // last stretch of the circle: home in on wherever you are now
                         phase = RETURN;
                         phaseTicks = 0;
