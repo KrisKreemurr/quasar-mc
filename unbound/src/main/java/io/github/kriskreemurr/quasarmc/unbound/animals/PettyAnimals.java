@@ -51,6 +51,8 @@ public final class PettyAnimals {
     private static final int ANGRY_TICKS = 100;
     /** it gives up if you get further away than this */
     private static final double GIVE_UP_DISTANCE = 12;
+    /** a blocked cow charge drops your shield this long (2 s; an axe does 5 s) */
+    private static final int SHIELD_DISABLE_TICKS = 40;
 
     private PettyAnimals() {}
 
@@ -132,11 +134,20 @@ public final class PettyAnimals {
                 mob.getLookControl().setLookAt(t, 30f, 30f);
                 if (!leapHit && mob.getBoundingBox().inflate(0.3).intersects(t.getBoundingBox())) {
                     leapHit = true;
+                    // a charging cow is too heavy to stop: a shield takes the hit but drops for 2 s (an axe: 5 s)
+                    net.minecraft.world.item.ItemStack shield = t.isBlocking() ? t.getItemBlockingWith() : null;
+                    if (shield != null && shield.isEmpty()) shield = null;
                     if (t.hurtServer(level, mob.damageSources().mobAttack(mob), (float) fight.damage())) {
                         net.minecraft.world.phys.Vec3 dir = t.position().subtract(mob.position()).multiply(1, 0, 1);
                         dir = dir.lengthSqr() > 1e-6 ? dir.normalize() : net.minecraft.world.phys.Vec3.ZERO;
                         t.push(dir.x * 0.9, 0.35, dir.z * 0.9);
                         t.needsSync = true;
+                    }
+                    else if (shield != null && t instanceof net.minecraft.world.entity.player.Player p) {
+                        p.getCooldowns().addCooldown(shield, SHIELD_DISABLE_TICKS);
+                        p.stopUsingItem();
+                        level.playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.SHIELD_BREAK,
+                            net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 0.8f + level.getRandom().nextFloat() * 0.4f);
                     }
                 }
                 if (leapTicks == 0) leapCooldown = 40;
