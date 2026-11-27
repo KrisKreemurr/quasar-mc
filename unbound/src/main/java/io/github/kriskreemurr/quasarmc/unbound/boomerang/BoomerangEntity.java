@@ -117,7 +117,10 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayersNear(level, null, at.x, at.y, at.z, 96,
             new CrackerBurstPayload(at.x, at.y, at.z, level.getRandom().nextLong()));
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(CRACKER_RADIUS))) {
-            double d = Math.sqrt(e.distanceToSqr(at));
+            // distance to the nearest point of its body (not its feet), so whatever it hit takes the full blast
+            AABB bb = e.getBoundingBox();
+            double d = Math.sqrt(new Vec3(Math.max(bb.minX, Math.min(at.x, bb.maxX)), Math.max(bb.minY, Math.min(at.y, bb.maxY)),
+                Math.max(bb.minZ, Math.min(at.z, bb.maxZ))).distanceToSqr(at));
             if (d > CRACKER_RADIUS || !e.isAlive()) continue;
             boolean seen = false;
             for (int k = 0; k < 2 && !seen; k++) {
