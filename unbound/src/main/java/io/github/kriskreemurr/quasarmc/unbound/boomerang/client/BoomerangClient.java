@@ -30,7 +30,8 @@ public final class BoomerangClient {
                 // gliding: both boomerangs up overhead (you: by your jump key; others: airborne with two Glide boomerangs)
                 if (entity instanceof net.minecraft.world.entity.player.Player p
                         && io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangGlide.gliding(p,
-                            p.isLocalPlayer() ? jumpHeld() : true)) return BoomerangArmPose.GLIDE.getValue();
+                            p.isLocalPlayer() ? io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangGlide.armedNow(p) : true))
+                    return BoomerangArmPose.GLIDE.getValue();
                 return BoomerangArmPose.HOLD.getValue();
             }
         };

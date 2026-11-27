@@ -15,7 +15,8 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * Glide I-III (user's enchantment): with a Glide boomerang in <b>both</b> hands, hold jump while falling to glide down
+ * Glide I-III (user's enchantment): with a Glide boomerang in <b>both</b> hands, press and hold jump again while in
+ * the air (the jump that took you off the ground doesn't count) to glide down
  * safely, the boomerangs held overhead like a rotor (Ty's glide). Not slow falling: it only works while you hold jump
  * (let go and you drop, fall damage and all), you keep your forward momentum, and throwing either boomerang ends it.
  * The lower of the two levels counts; each level glides down slower.
@@ -26,7 +27,30 @@ public final class BoomerangGlide {
     /** fastest fall while gliding, blocks per tick, by level (normal falling tops out near 3.9) */
     private static final double[] MAX_FALL = {0, 0.30, 0.18, 0.09};
 
+    /**
+     * Per player: jump was down last tick, and a glide has been started this fall. Gliding needs a fresh press of jump
+     * while airborne (the jump that left the ground doesn't count), then holding it; landing or letting go ends it.
+     */
+    private record JumpState(boolean wasDown, boolean armed) {}
+    private static final java.util.Map<Player, JumpState> STATES = new java.util.WeakHashMap<>();
+
     private BoomerangGlide() {}
+
+    /** fresh-press logic; returns whether this tick counts as "holding glide" */
+    private static boolean armed(Player p, boolean jumpDown) {
+        JumpState s = STATES.getOrDefault(p, new JumpState(false, false));
+        boolean armed = s.armed();
+        if (p.onGround() || !jumpDown) armed = false;
+        else if (!s.wasDown()) armed = true; // pressed again while in the air
+        STATES.put(p, new JumpState(jumpDown, armed));
+        return armed;
+    }
+
+    /** the local player's glide state as last decided (arm pose) */
+    public static boolean armedNow(Player p) {
+        JumpState s = STATES.get(p);
+        return s != null && s.armed();
+    }
 
     public static void register() {
         NeoForge.EVENT_BUS.addListener(PlayerTickEvent.Post.class, e -> tick(e.getEntity()));
@@ -54,7 +78,7 @@ public final class BoomerangGlide {
         else if (p.level().isClientSide() && p.isLocalPlayer())
             jump = io.github.kriskreemurr.quasarmc.unbound.boomerang.client.BoomerangClient.jumpHeld();
         else return;
-        if (!gliding(p, jump)) return;
+        if (!gliding(p, armed(p, jump))) return;
         // the client moves its own player: cap the fall there; both sides forget the height fallen so far
         double max = MAX_FALL[level(p)];
         Vec3 v = p.getDeltaMovement();
