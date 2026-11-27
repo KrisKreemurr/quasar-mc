@@ -123,7 +123,7 @@ public final class BoomerangClient {
             lines.add(net.minecraft.network.chat.Component.translatable(k + "hits_on_return").withStyle(net.minecraft.ChatFormatting.BLUE));
         if (tier.cracker()) {
             lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker", (int) io.github.kriskreemurr.quasarmc.unbound.boomerang.BoomerangEntity.CRACKER_BLAST)
-                .withStyle(net.minecraft.ChatFormatting.BLUE));
+                .withStyle(net.minecraft.ChatFormatting.DARK_GREEN));
             lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker_ammo").withStyle(net.minecraft.ChatFormatting.BLUE));
             lines.add(net.minecraft.network.chat.Component.translatable(k + "cracker_catch").withStyle(net.minecraft.ChatFormatting.BLUE));
         }
