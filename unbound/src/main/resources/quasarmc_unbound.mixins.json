@@ -8,7 +8,8 @@
     "AnvilNoGoldRepairMixin",
     "GrindstoneNoGoldRepairMixin",
     "RepairItemRecipeNoGoldMixin",
-    "NoGoldMendingMixin"
+    "NoGoldMendingMixin",
+    "WaterloggedLanternMixin"
   ],
   "injectors": {
     "defaultRequire": 1

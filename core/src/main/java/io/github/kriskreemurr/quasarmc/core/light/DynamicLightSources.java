@@ -16,18 +16,38 @@ import net.minecraft.world.item.Items;
 public final class DynamicLightSources {
     private DynamicLightSources() {}
 
+    /**
+     * Lights that are a flame (torches, lanterns, candles, campfires, jack o'lanterns): they go out underwater.
+     * Everything else (glowstone, sea lanterns, froglights...) keeps glowing.
+     */
+    public static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> FIRE_LIGHT = net.minecraft.tags.TagKey.create(
+            net.minecraft.core.registries.Registries.ITEM,
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("quasarmc_core", "fire_light"));
+
     /** Light level 0..15 an entity gives off right now. */
     public static int luminance(Entity entity) {
         if (entity.isRemoved() || entity.isSpectator()) return 0;
         int lum = entity.isOnFire() ? 15 : 0;
         if (lum >= 15) return 15;
         if (entity instanceof LivingEntity living) {
-            lum = Math.max(lum, luminance(living.getMainHandItem()));
-            lum = Math.max(lum, luminance(living.getOffhandItem()));
+            boolean wet = submerged(entity);
+            lum = Math.max(lum, luminance(living.getMainHandItem(), wet));
+            lum = Math.max(lum, luminance(living.getOffhandItem(), wet));
         } else if (entity instanceof ItemEntity item) {
-            lum = Math.max(lum, luminance(item.getItem()));
+            lum = Math.max(lum, luminance(item.getItem(), submerged(entity)));
         }
         return lum;
+    }
+
+    /** the light's spot is underwater (a held torch at your eyes, a dropped one where it lies) */
+    private static boolean submerged(Entity entity) {
+        return entity.level().getFluidState(lightPos(entity)).is(net.minecraft.tags.FluidTags.WATER);
+    }
+
+    /** {@link #luminance(ItemStack)}, but a flame gives nothing underwater */
+    public static int luminance(ItemStack stack, boolean underwater) {
+        if (underwater && stack.is(FIRE_LIGHT)) return 0;
+        return luminance(stack);
     }
 
     /** Light level of an item: the light of the block it places (torch 14, lantern 15, ...), lava bucket 15. */

@@ -135,14 +135,12 @@ public final class Sanity {
         return perMin < 0 ? -t : t;
     }
 
-    /** True if either hand holds a block that gives off light (torch, lantern, glowstone, modded lights...). */
+    /**
+     * True if the player gives off light: a light block in either hand (torch, lantern, glowstone, modded lights...),
+     * the same rule as the dynamic lights - so a torch underwater doesn't count, a glowing block does
+     */
     static boolean holdsLight(ServerPlayer p) {
-        return emitsLight(p.getMainHandItem()) || emitsLight(p.getOffhandItem());
-    }
-
-    private static boolean emitsLight(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof BlockItem item
-                && item.getBlock().defaultBlockState().getLightEmission() > 0;
+        return io.github.kriskreemurr.quasarmc.core.light.DynamicLightSources.luminance(p) > 0;
     }
 
     private static int pixel(float v) {
