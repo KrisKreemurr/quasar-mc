@@ -132,7 +132,6 @@ public final class PettyAnimals {
                 mob.getLookControl().setLookAt(t, 30f, 30f);
                 if (!leapHit && mob.getBoundingBox().inflate(0.3).intersects(t.getBoundingBox())) {
                     leapHit = true;
-                    mob.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
                     if (t.hurtServer(level, mob.damageSources().mobAttack(mob), (float) fight.damage())) {
                         net.minecraft.world.phys.Vec3 dir = t.position().subtract(mob.position()).multiply(1, 0, 1);
                         dir = dir.lengthSqr() > 1e-6 ? dir.normalize() : net.minecraft.world.phys.Vec3.ZERO;
@@ -152,8 +151,7 @@ public final class PettyAnimals {
                 mob.needsSync = true;
                 leapTicks = 14;
                 leapHit = false;
-                level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), net.minecraft.sounds.SoundEvents.COW_HURT,
-                    net.minecraft.sounds.SoundSource.NEUTRAL, 1.0f, 0.7f);
+                mob.playAmbientSound(); // its own moo (cow sounds depend on the variant)
                 return true;
             }
             return false;
