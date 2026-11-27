@@ -37,8 +37,8 @@ import net.minecraft.world.phys.Vec3;
  *     comes back to the throwing height. A hit on anything (mob or block) ends the circle.</li>
  * <li>POP: a short upward arc.</li>
  * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
- *     away it dings, and from the ding it arrives no sooner than 1 s later (it slows down or lingers): the catch
- *     window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
+ *     away it paces itself to arrive no sooner than 1 s later (slowing down or lingering); in the last 0.4 s it
+ *     dings, and the ding is the catch window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
  *     own damage and drops at your feet.</li>
  * </ol>
  * Normal boomerangs hit one target, on the way out. Golden ones also hit on the way back (each target once).
@@ -210,21 +210,24 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
                 Vec3 target = owner.getEyePosition().add(0, -0.3, 0);
                 Vec3 to = target.subtract(pos);
                 double dist = to.length();
-                if (dingTick >= 0 && !catchWindow() && tickCount - dingTick >= CATCH_TICKS - WINDOW_TICKS) {
-                    entityData.set(WINDOW, true);
-                }
-                if (dingTick < 0 && dist / RETURN_SPEED <= CATCH_TICKS) {
-                    dingTick = tickCount;
-                    level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), SoundEvents.NOTE_BLOCK_BELL.value(),
-                        SoundSource.PLAYERS, 0.9f, 1.8f);
-                }
+                // pacing: from 1 s out it arrives no sooner than 1 s later (slows down or lingers), so the catch
+                // window below always gets its full length
+                if (dingTick < 0 && dist / RETURN_SPEED <= CATCH_TICKS) dingTick = tickCount;
                 double speed = RETURN_SPEED;
                 if (dingTick >= 0) {
-                    // arrive no sooner than CATCH_TICKS after the ding: slow down or linger
                     int left = Math.max(1, CATCH_TICKS - (tickCount - dingTick));
                     speed = Math.min(RETURN_SPEED, dist / left);
                 }
-                if (dist < 0.6 && dingTick >= 0 && tickCount - dingTick >= CATCH_TICKS) {
+                // the ding IS the catch window: it plays the moment the window (and the "Catch!" prompt) opens, in
+                // the last WINDOW_TICKS before it reaches you (by its real remaining distance, so running away from
+                // it doesn't open the window early)
+                if (dingTick >= 0 && !catchWindow() && tickCount - dingTick >= CATCH_TICKS - WINDOW_TICKS
+                        && dist / Math.max(speed, 1e-3) <= WINDOW_TICKS + 1) {
+                    entityData.set(WINDOW, true);
+                    level.playSound(null, owner.getX(), owner.getEyeY(), owner.getZ(), SoundEvents.NOTE_BLOCK_BELL.value(),
+                        SoundSource.PLAYERS, 1.0f, 1.8f);
+                }
+                if (dist < 0.6 && catchWindow() && tickCount - dingTick >= CATCH_TICKS) {
                     missedCatch(level, owner);
                     return;
                 }
