@@ -36,10 +36,10 @@ import net.minecraft.world.phys.Vec3;
  *     at, then a tight U-turn toward the throwing hand's side, then it homes back. A hit on anything (mob or block)
  *     ends it.</li>
  * <li>POP: a short upward arc.</li>
- * <li>RETURN: homes on the thrower's eyes (chases you if you move), passing through blocks. When it is at most 1 s
- *     away... it comes back at full speed; 0.5 s out it dings and paces itself to arrive exactly 0.5 s later: the
- *     ding is the catch window. Catch with an empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its
- *     own damage and drops at your feet.</li>
+ * <li>RETURN: homes on the thrower's eyes at full speed (chases you if you move), passing through blocks. About
+ *     0.5 s out it dings and paces itself to arrive exactly 0.5 s later: the ding is the catch window. Catch with an
+ *     empty hand (right-click; {@link BoomerangCatchPayload}). Not caught: it hits you for its own damage and drops
+ *     at your feet.</li>
  * </ol>
  * Normal boomerangs hit one target, on the way out. Golden ones also hit on the way back (each target once).
  */
