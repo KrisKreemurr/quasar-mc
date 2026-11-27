@@ -48,7 +48,7 @@ public final class Boomerangs {
         for (BoomerangTier tier : BoomerangTier.values()) {
             ITEM.put(tier, ITEMS.register(tier.id, id -> {
                 Item.Properties p = new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))
-                        .durability(tier.durability);
+                        .durability(tier.durability).enchantable(tier.enchantability);
                 if (tier == BoomerangTier.NETHERITE) p = p.fireResistant();
                 return new BoomerangItem(tier, p);
             }));

@@ -5,21 +5,24 @@ package io.github.kriskreemurr.quasarmc.unbound.boomerang;
  * axe 12). Durability = the tier's tool durability; one point per throw.
  */
 public enum BoomerangTier {
-    WOODEN("wooden_boomerang", 5f, 59, false),
-    STONE("stone_boomerang", 6f, 131, false),
-    COPPER("copper_boomerang", 6f, 190, false),
-    IRON("iron_boomerang", 7f, 250, false),
-    DIAMOND("diamond_boomerang", 8f, 1561, false),
-    NETHERITE("netherite_boomerang", 9f, 2031, false),
+    WOODEN("wooden_boomerang", 5f, 59, false, 15),
+    STONE("stone_boomerang", 6f, 131, false, 5),
+    COPPER("copper_boomerang", 6f, 190, false, 13),
+    IRON("iron_boomerang", 7f, 250, false, 14),
+    DIAMOND("diamond_boomerang", 8f, 1561, false, 10),
+    NETHERITE("netherite_boomerang", 9f, 2031, false, 15),
     /** gold: hits on the way back too (two hits per throw), 32 uses, never repaired */
-    GOLDEN("golden_boomerang", 11f, 32, true);
+    GOLDEN("golden_boomerang", 11f, 32, true, 22);
 
     public final String id;
     public final float damage;
     public final int durability;
     public final boolean hitsOnReturn;
+    /** enchanting-table enchantability (the tier's tool value) */
+    public final int enchantability;
 
-    BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn) {
+    BoomerangTier(String id, float damage, int durability, boolean hitsOnReturn, int enchantability) {
+        this.enchantability = enchantability;
         this.id = id;
         this.damage = damage;
         this.durability = durability;

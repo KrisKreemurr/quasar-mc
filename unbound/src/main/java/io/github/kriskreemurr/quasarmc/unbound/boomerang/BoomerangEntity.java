@@ -329,7 +329,21 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     }
 
     private void strike(ServerLevel level, Player owner, Entity target) {
-        target.hurtServer(level, damageSources().thrown(this, owner), damage);
+        // Power and Punch (their vanilla files are overridden to accept boomerangs, see data/minecraft/enchantment)
+        var source = damageSources().thrown(this, owner);
+        ItemStack weapon = getItem();
+        float dmg = net.minecraft.world.item.enchantment.EnchantmentHelper.modifyDamage(level, weapon, target, source, damage);
+        boolean hurt = target.hurtServer(level, source, dmg);
+        float punch = net.minecraft.world.item.enchantment.EnchantmentHelper.modifyKnockback(level, weapon, target, source, 0f);
+        if (hurt && punch > 0 && target instanceof LivingEntity living) {
+            double resist = Math.max(0, 1 - living.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.KNOCKBACK_RESISTANCE));
+            Vec3 push = getDeltaMovement().multiply(1, 0, 1);
+            if (push.lengthSqr() > 1e-6) {
+                push = push.normalize().scale(punch * 0.6 * resist);
+                living.push(push.x, 0.1, push.z);
+            }
+        }
+        if (hurt) net.minecraft.world.item.enchantment.EnchantmentHelper.doPostAttackEffectsWithItemSource(level, target, source, weapon);
         level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
             IMPACT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
     }
