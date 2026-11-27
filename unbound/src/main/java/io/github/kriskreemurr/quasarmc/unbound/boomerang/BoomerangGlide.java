@@ -32,7 +32,8 @@ public final class BoomerangGlide {
      * while airborne (the jump that left the ground doesn't count), then holding it; landing or letting go ends it.
      */
     private record JumpState(boolean wasDown, boolean armed) {}
-    private static final java.util.Map<Player, JumpState> STATES = new java.util.WeakHashMap<>();
+    // client and server threads both use it in singleplayer
+    private static final java.util.Map<Player, JumpState> STATES = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
     private BoomerangGlide() {}
 
