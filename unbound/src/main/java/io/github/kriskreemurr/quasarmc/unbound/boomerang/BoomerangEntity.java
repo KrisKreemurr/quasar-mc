@@ -417,9 +417,11 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         }
         if (hurt) net.minecraft.world.item.enchantment.EnchantmentHelper.doPostAttackEffectsWithItemSource(level, target, source, weapon);
         else chainBlocked = true; // a shield (or immunity) stops a Multi-Target chain: it deflects home
+        if (hurt) {
+            level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
+                HIT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
+        }
         return hurt;
-        level.playSound(null, target.getX(), target.getY(), target.getZ(), Boomerangs.HIT_ENTITY.get(), SoundSource.PLAYERS,
-            HIT_VOLUME, 0.9f + random.nextFloat() * 0.2f);
     }
 
     /** caught with an empty hand (server, from the catch payload) */
