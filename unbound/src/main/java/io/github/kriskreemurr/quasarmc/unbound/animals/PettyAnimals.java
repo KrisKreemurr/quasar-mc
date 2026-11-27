@@ -56,7 +56,9 @@ public final class PettyAnimals {
      * Kill a chicken and the flock avenges it (user's brother, 2026-11-27): adult chickens within this range go for the
      * killer for {@link #FLOCK_FURY_TICKS} (12 s). Hurting one only makes that one angry.
      */
-    private static final double FLOCK_RANGE = 16;
+    private static final double FLOCK_RANGE = 24;
+    /** an avenging chicken chases this far before giving up (normal anger: {@link #GIVE_UP_DISTANCE}) */
+    private static final double FURY_GIVE_UP_DISTANCE = 32;
     private static final int FLOCK_FURY_TICKS = 240;
     /** per avenging chicken: its tickCount when the fury ends (server thread only) */
     private static final Map<net.minecraft.world.entity.Mob, Integer> FURY = new java.util.WeakHashMap<>();
@@ -74,6 +76,8 @@ public final class PettyAnimals {
                 if (!e.has(type, Attributes.ATTACK_DAMAGE)) e.add(type, Attributes.ATTACK_DAMAGE, f.getValue().damage());
                 if (!e.has(type, Attributes.ATTACK_KNOCKBACK)) e.add(type, Attributes.ATTACK_KNOCKBACK, f.getValue().knockback());
             }
+            // the flock has to be able to path to you from the edge of its range
+            e.add(EntityTypes.CHICKEN, Attributes.FOLLOW_RANGE, FURY_GIVE_UP_DISTANCE);
         });
         NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.event.entity.living.LivingDeathEvent.class, e -> {
             if (e.getEntity().level().isClientSide() || e.getEntity().getType() != EntityTypes.CHICKEN) return;
@@ -214,7 +218,7 @@ public final class PettyAnimals {
             if (fury != null && !furious) FURY.remove(mob);
             boolean angry = !mob.isBaby() && t != null && t.isAlive()
                 && (furious || mob.tickCount - since < ANGRY_TICKS)
-                && mob.distanceToSqr(t) < GIVE_UP_DISTANCE * GIVE_UP_DISTANCE;
+                && mob.distanceToSqr(t) < (furious ? FURY_GIVE_UP_DISTANCE * FURY_GIVE_UP_DISTANCE : GIVE_UP_DISTANCE * GIVE_UP_DISTANCE);
             if (!angry && t != null) mob.setTarget(null); // calm down
             return angry;
         }
