@@ -34,14 +34,16 @@ public final class BoomerangClient {
         Minecraft.getInstance().getSoundManager().play(new BoomerangFlyingSound(b));
     }
 
-    /** your boomerang with its catch window open, or null */
+    /** your boomerang with its catch window open (the nearest, if both are), or null */
     static BoomerangEntity catchable() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return null;
+        BoomerangEntity best = null;
         for (Entity e : mc.level.entitiesForRendering()) {
-            if (e instanceof BoomerangEntity b && b.catchWindow() && b.getOwner() == mc.player) return b;
+            if (e instanceof BoomerangEntity b && b.catchWindow() && b.getOwner() == mc.player
+                && (best == null || b.distanceToSqr(mc.player) < best.distanceToSqr(mc.player))) best = b;
         }
-        return null;
+        return best;
     }
 
     /**
@@ -49,10 +51,14 @@ public final class BoomerangClient {
      * of using whatever else you hold. No empty hand: nothing special (it will hit you).
      */
     public static void onUse(InputEvent.InteractionKeyMappingTriggered e) {
-        if (!e.isUseItem() || catchable() == null) return;
+        BoomerangEntity b;
+        if (!e.isUseItem() || (b = catchable()) == null) return;
         Minecraft mc = Minecraft.getInstance();
-        InteractionHand hand = mc.player.getMainHandItem().isEmpty() ? InteractionHand.MAIN_HAND
-            : mc.player.getOffhandItem().isEmpty() ? InteractionHand.OFF_HAND : null;
+        // back into the hand that threw it if that hand is free, else the other free hand
+        InteractionHand own = b.thrownFrom();
+        InteractionHand other = own == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        InteractionHand hand = mc.player.getItemInHand(own).isEmpty() ? own
+            : mc.player.getItemInHand(other).isEmpty() ? other : null;
         if (hand == null) return;
         ClientPacketDistributor.sendToServer(new BoomerangCatchPayload(hand == InteractionHand.OFF_HAND));
         e.setSwingHand(true);

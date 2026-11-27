@@ -12,8 +12,8 @@ import net.minecraft.world.level.Level;
 
 /**
  * Right-click throws the boomerang in that hand (main hand first, then offhand: vanilla's hand order, so dual wield
- * alternates). Only one boomerang per player in flight at a time. The thrown stack leaves your hand, which frees that
- * hand for the catch.
+ * alternates). One boomerang in the air per hand, so a dual wielder can have both out. The thrown stack leaves your
+ * hand, which frees that hand for the catch.
  */
 public class BoomerangItem extends Item {
     public final BoomerangTier tier;
@@ -25,7 +25,8 @@ public class BoomerangItem extends Item {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (BoomerangEntity.inFlightFor(level, player) != null) return InteractionResult.FAIL;
+        // one boomerang in the air per hand; PASS (not FAIL) lets the other hand have its turn
+        if (BoomerangEntity.inFlightFor(level, player, hand) != null) return InteractionResult.PASS;
         ItemStack stack = player.getItemInHand(hand);
         if (level instanceof ServerLevel server) {
             // durability is spent when it hits something, not on the throw (BoomerangEntity)

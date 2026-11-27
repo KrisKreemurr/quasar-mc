@@ -69,7 +69,7 @@ public final class Boomerangs {
         modBus.addListener(RegisterPayloadHandlersEvent.class, e -> e.registrar("1")
                 .playToServer(BoomerangCatchPayload.TYPE, BoomerangCatchPayload.STREAM_CODEC, (payload, ctx) -> {
                     Player player = ctx.player();
-                    BoomerangEntity b = BoomerangEntity.inFlightFor(player.level(), player);
+                    BoomerangEntity b = BoomerangEntity.catchableFor(player.level(), player);
                     if (b != null) b.tryCatch(player, payload.offhand() ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND);
                 }));
     }

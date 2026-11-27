@@ -48,6 +48,8 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
     /** catch window open (dinged, not arrived): drives the client's catch check and HUD prompt */
     static final EntityDataAccessor<Boolean> WINDOW = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
     /** still whooshing: the flying sound loops until the boomerang first hits something */
+    /** thrown from the offhand (each hand can have its own boomerang in the air) */
+    static final EntityDataAccessor<Boolean> OFFHAND = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
     static final EntityDataAccessor<Boolean> WHOOSH = SynchedEntityData.defineId(BoomerangEntity.class, EntityDataSerializers.BOOLEAN);
     /** impact sounds are played louder than normal so the thrower always hears them (range scales with volume) */
     private static final float IMPACT_VOLUME = 2.0f;
@@ -88,6 +90,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         e.setOwner(owner);
         e.setItem(stack);
         e.hand = hand;
+        e.entityData.set(OFFHAND, hand == InteractionHand.OFF_HAND);
         e.damage = tier.damage;
         e.hitsOnReturn = tier.hitsOnReturn;
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? owner.getMainArm() : owner.getMainArm().getOpposite();
@@ -104,12 +107,26 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         return e;
     }
 
-    /** this player's boomerang currently in flight in this level, or null (one at a time) */
-    static BoomerangEntity inFlightFor(Level level, Player player) {
+    /** the hand this boomerang was thrown from */
+    public InteractionHand thrownFrom() {
+        return entityData.get(OFFHAND) ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+    }
+
+    /** this player's boomerang in flight that was thrown from {@code hand}, or null (one per hand) */
+    static BoomerangEntity inFlightFor(Level level, Player player, InteractionHand hand) {
         for (BoomerangEntity e : level.getEntitiesOfClass(BoomerangEntity.class, player.getBoundingBox().inflate(MAX_OWNER_DIST))) {
-            if (!e.isRemoved() && e.getOwner() == player) return e;
+            if (!e.isRemoved() && e.getOwner() == player && e.thrownFrom() == hand) return e;
         }
         return null;
+    }
+
+    /** this player's boomerang with its catch window open (the one that opened first), or null */
+    static BoomerangEntity catchableFor(Level level, Player player) {
+        BoomerangEntity best = null;
+        for (BoomerangEntity e : level.getEntitiesOfClass(BoomerangEntity.class, player.getBoundingBox().inflate(MAX_OWNER_DIST))) {
+            if (!e.isRemoved() && e.getOwner() == player && e.catchWindow() && (best == null || e.dingTick < best.dingTick)) best = e;
+        }
+        return best;
     }
 
     @Override
@@ -117,6 +134,7 @@ public class BoomerangEntity extends Projectile implements ItemSupplier {
         builder.define(ITEM, ItemStack.EMPTY);
         builder.define(WINDOW, false);
         builder.define(WHOOSH, true);
+        builder.define(OFFHAND, false);
     }
 
     @Override
