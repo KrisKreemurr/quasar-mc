@@ -10,6 +10,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.BlockAndLightGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.lighting.LightEngine;
@@ -41,6 +44,9 @@ import java.util.concurrent.atomic.LongAdder;
  *       so round and vanilla light are identical there.</li>
  *   <li>Work is limited to the box the found lights can reach (light can't travel further than its level), so a
  *       weak light costs a few hundred cells instead of the whole 48³ region.</li>
+ *   <li>Nether lava is not spread: a lava sea is hundreds of sources that light evenly anyway, so its roundness
+ *       is invisible. It keeps vanilla's light level and only adds its color (at export). Torches, glowstone etc.
+ *       next to it stay round. Overworld lava is still round.</li>
  * </ul>
  *
  * <p>The result only changes the block-light half of terrain vertex light, so it works with Meshelium, which
@@ -78,6 +84,10 @@ public final class RoundLight {
             threeChannel = new AtomicLong(), onRenderThread = new AtomicLong();
     private static final Map<Object, LongAdder> seedsBySource = new ConcurrentHashMap<>();
     private static final Object MOVING = new Object();
+    private static final AtomicLong flatLavaBuilds = new AtomicLong();
+    /** RenderSectionRegion's Level field, found by type (null: none, fall back to the client's level). */
+    private static volatile java.lang.reflect.Field regionLevelField;
+    private static volatile boolean regionLevelLooked;
     private static volatile Thread renderThread;
     private static long windowStart = System.nanoTime();
     private static String shown = "Round light: idle";
@@ -99,6 +109,9 @@ public final class RoundLight {
         final short[] bright = new short[N * N2];
         /** Light sources found for this build: cell index, light (sixteenths), color. */
         int seedCount;
+        /** Nether lava near the section: not spread, colored at export from vanilla's light level. */
+        boolean flatLava;
+        float[] flatLavaColor;
         int[] seedIdx = new int[64];
         int[] seedV = new int[64];
         float[][] seedColor = new float[64][];
@@ -156,11 +169,13 @@ public final class RoundLight {
         built.incrementAndGet();
         if (Thread.currentThread() == renderThread) onRenderThread.incrementAndGet();
         try {
-            if (compute(w, section, region)) {
-                w.region = region;
+            boolean round = compute(w, section, region);
+            if (round || w.flatLava) {
+                if (round) w.region = region;
                 lit.incrementAndGet();
+                if (w.flatLava) flatLavaBuilds.incrementAndGet();
                 long e0 = System.nanoTime();
-                int[] colors = exportColors(w);
+                int[] colors = exportColors(w, region, round);
                 exportNanos.addAndGet(System.nanoTime() - e0);
                 ColorBridge.submit(section, colors, seq);
             } else {
@@ -214,6 +229,7 @@ public final class RoundLight {
             long sc = scanNanos.getAndSet(0), sp = spreadNanos.getAndSet(0), ex = exportNanos.getAndSet(0);
             long seeds = seedsTotal.getAndSet(0), cells = boxCells.getAndSet(0), tri = threeChannel.getAndSet(0);
             long rt = onRenderThread.getAndSet(0);
+            long flat = flatLavaBuilds.getAndSet(0);
             Object top = null;
             long topCount = 0, allCount = 0;
             for (Map.Entry<Object, LongAdder> e : seedsBySource.entrySet()) {
@@ -234,11 +250,12 @@ public final class RoundLight {
                 String topName = top == null ? "-" : top == MOVING ? "moving light"
                         : BuiltInRegistries.BLOCK.getKey((Block) top).getPath();
                 shownSplit = String.format(
-                        "Round light split: scan %.3f ms/build; per lit: spread %.2f, colors %.3f ms, %.1f lights, box %dk cells, 3-color %d%%; render thread %d/s; top light: %s (%d%%)",
+                        "Round light split: scan %.3f ms/build; per lit: spread %.2f, colors %.3f ms, %.1f lights, box %dk cells, 3-color %d%%, flat Nether lava %d%%; render thread %d/s; top light: %s (%d%%)",
                         sc / 1e6 / b,
                         l == 0 ? 0.0 : sp / 1e6 / l, l == 0 ? 0.0 : ex / 1e6 / l,
                         l == 0 ? 0.0 : (double) seeds / l, l == 0 ? 0 : Math.round(cells / 1000.0 / l),
-                        l == 0 ? 0 : Math.round(100.0 * tri / l), Math.round(rt / secs),
+                        l == 0 ? 0 : Math.round(100.0 * tri / l), l == 0 ? 0 : Math.round(100.0 * flat / l),
+                        Math.round(rt / secs),
                         topName, allCount == 0 ? 0 : Math.round(100.0 * topCount / allCount));
             }
         }
@@ -263,6 +280,8 @@ public final class RoundLight {
         // 1) find light sources that can reach the target box
         boolean any = false;
         w.seedCount = 0;
+        w.flatLava = false;
+        boolean netherLava = QuasiumConfig.roundLight && isNether(region);
         // block info cache, shared by the seed scan (buried check) and the three channels: a new generation
         // invalidates every cell without clearing the arrays
         if (++w.gen == Integer.MAX_VALUE) {
@@ -295,6 +314,13 @@ public final class RoundLight {
                                 // lava seas / glowstone blobs: a source walled in by rock or by the same light
                                 // adds nothing visible; only its surface seeds (volume -> surface)
                                 if (buried(w, region, x, y, z, s)) continue;
+                                if (netherLava && s.getBlock() == Blocks.LAVA) {
+                                    if (!w.flatLava) {
+                                        w.flatLava = true;
+                                        w.flatLavaColor = LightColors.of(s.getBlock());
+                                    }
+                                    continue;
+                                }
                                 w.addSeed((y * N + z) * N + x, Math.min(MAX, emission * 16), LightColors.of(s.getBlock()));
                                 seedsBySource.computeIfAbsent(s.getBlock(), k -> new LongAdder()).increment();
                                 any = true;
@@ -407,15 +433,29 @@ public final class RoundLight {
      * The section's block-light colors for Quasar Meshelium: one RGBA8 per block, rgb = color (brightest channel
      * 255), a = brightness in sixteenths. Null if the section itself has no block light.
      */
-    private static int[] exportColors(Work w) {
+    private static int[] exportColors(Work w, RenderSectionRegion region, boolean round) {
         int[] out = null;
+        float[] lava = w.flatLava ? w.flatLavaColor : null;
         for (int y = 0; y < 16; y++) {
             for (int z = 0; z < 16; z++) {
                 for (int x = 0; x < 16; x++) {
                     int idx = ((y + 16) * N + (z + 16)) * N + (x + 16);
-                    int m = w.bright[idx];
+                    int m = round ? w.bright[idx] : 0;
+                    int vr = round ? w.valueC[0][idx] : 0, vg = round ? w.valueC[1][idx] : 0,
+                            vb = round ? w.valueC[2][idx] : 0;
+                    if (lava != null) {
+                        // flat Nether lava: vanilla's own light level, in lava's color; the brighter light wins
+                        w.pos.set(w.ox + x + 16, w.oy + y + 16, w.oz + z + 16);
+                        int v = region.getBrightness(LightLayer.BLOCK, w.pos) * 16;
+                        if (v > 0) {
+                            vr = Math.max(vr, Math.round(v * lava[0]));
+                            vg = Math.max(vg, Math.round(v * lava[1]));
+                            vb = Math.max(vb, Math.round(v * lava[2]));
+                            m = Math.max(m, v);
+                        }
+                    }
                     if (m <= 0) continue;
-                    int r = w.valueC[0][idx] * 255 / m, g = w.valueC[1][idx] * 255 / m, b = w.valueC[2][idx] * 255 / m;
+                    int r = vr * 255 / m, g = vg * 255 / m, b = vb * 255 / m;
                     if (out == null) out = new int[4096];
                     out[(y * 16 + z) * 16 + x] = r | (g << 8) | (b << 16) | (Math.min(255, m) << 24);
                 }
@@ -561,6 +601,47 @@ public final class RoundLight {
             if (n.getBlock() != self.getBlock() || n.getLightEmission() < emission) return false;
         }
         return true;
+    }
+
+    /** Is this build for a Nether section? Uses the region's own world (portal views build the other world). */
+    private static boolean isNether(RenderSectionRegion region) {
+        Level level = regionLevel(region);
+        if (level == null) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            level = mc.level;
+        }
+        return level != null && level.dimension() == Level.NETHER;
+    }
+
+    private static Level regionLevel(RenderSectionRegion region) {
+        if (!regionLevelLooked) {
+            synchronized (RoundLight.class) {
+                if (!regionLevelLooked) {
+                    try {
+                        for (java.lang.reflect.Field f : RenderSectionRegion.class.getDeclaredFields()) {
+                            if (Level.class.isAssignableFrom(f.getType())
+                                    && !java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                                f.setAccessible(true);
+                                regionLevelField = f;
+                                break;
+                            }
+                        }
+                    } catch (Throwable t) {
+                        regionLevelField = null;
+                    }
+                    if (regionLevelField == null)
+                        Quasium.LOGGER.warn("Quasium: RenderSectionRegion has no Level field; Nether lava check uses the client's world");
+                    regionLevelLooked = true;
+                }
+            }
+        }
+        java.lang.reflect.Field f = regionLevelField;
+        if (f == null) return null;
+        try {
+            return (Level) f.get(region);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private static final int[][] FACES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
