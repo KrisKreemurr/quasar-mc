@@ -15,8 +15,14 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.shapes.Shapes;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Block;
+
 import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Round (circular) block light for terrain — visual only, client side.
@@ -31,6 +37,10 @@ import java.util.concurrent.atomic.AtomicLong;
  *       face like vanilla, and a diagonal step is only allowed if a path of straight steps around it is open.</li>
  *   <li>Never darker than vanilla: the vertex light is max(vanilla, round).</li>
  *   <li>Sections with no light source within 15 blocks are skipped almost for free (palette check).</li>
+ *   <li>Light level 1 sources (brown mushrooms, sculk...) are skipped: their light never leaves their own block,
+ *       so round and vanilla light are identical there.</li>
+ *   <li>Work is limited to the box the found lights can reach (light can't travel further than its level), so a
+ *       weak light costs a few hundred cells instead of the whole 48³ region.</li>
  * </ul>
  *
  * <p>The result only changes the block-light half of terrain vertex light, so it works with Meshelium, which
@@ -62,8 +72,16 @@ public final class RoundLight {
     // F3 stats
     private static final AtomicLong built = new AtomicLong(), lit = new AtomicLong(), nanos = new AtomicLong(),
             maxNanos = new AtomicLong();
+    // F3 split: where the time goes (scan = every build, spread/colors = lit builds only)
+    private static final AtomicLong scanNanos = new AtomicLong(), spreadNanos = new AtomicLong(),
+            exportNanos = new AtomicLong(), seedsTotal = new AtomicLong(), boxCells = new AtomicLong(),
+            threeChannel = new AtomicLong(), onRenderThread = new AtomicLong();
+    private static final Map<Object, LongAdder> seedsBySource = new ConcurrentHashMap<>();
+    private static final Object MOVING = new Object();
+    private static volatile Thread renderThread;
     private static long windowStart = System.nanoTime();
     private static String shown = "Round light: idle";
+    private static String shownSplit = null;
     private static volatile boolean warned;
 
     private RoundLight() {}
@@ -85,8 +103,14 @@ public final class RoundLight {
         int[] seedV = new int[64];
         float[][] seedColor = new float[64][];
         final byte[] flag = new byte[N * N2];
+        /** flag/damp/state of a cell are valid only if flagGen[cell] == gen (saves clearing 48³ every build). */
+        final int[] flagGen = new int[N * N2];
+        int gen;
         final byte[] damp = new byte[N * N2];
         final BlockState[] state = new BlockState[N * N2];
+        /** Box the current light field lives in, and the box the previous lit build wrote (still to clear). */
+        int bx0, by0, bz0, bx1, by1, bz1;
+        int px0 = 0, py0 = 0, pz0 = 0, px1 = -1, py1 = -1, pz1 = -1;
         final int[][] bucket = new int[MAX + 1][];
         final int[] bucketSize = new int[MAX + 1];
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -130,11 +154,15 @@ public final class RoundLight {
         }
         long start = System.nanoTime();
         built.incrementAndGet();
+        if (Thread.currentThread() == renderThread) onRenderThread.incrementAndGet();
         try {
             if (compute(w, section, region)) {
                 w.region = region;
                 lit.incrementAndGet();
-                ColorBridge.submit(section, exportColors(w), seq);
+                long e0 = System.nanoTime();
+                int[] colors = exportColors(w);
+                exportNanos.addAndGet(System.nanoTime() - e0);
+                ColorBridge.submit(section, colors, seq);
             } else {
                 ColorBridge.submit(section, null, seq);
             }
@@ -175,6 +203,7 @@ public final class RoundLight {
 
     /** F3 line: stats over the last full second (counted on worker threads, shown on the render thread). */
     public static String f3Line() {
+        renderThread = Thread.currentThread();
         if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return "Round light: off";
         long now = System.nanoTime();
         if (now - windowStart >= 1_000_000_000L) {
@@ -182,11 +211,44 @@ public final class RoundLight {
             double secs = (now - windowStart) / 1e9;
             windowStart = now;
             long b = built.getAndSet(0), l = lit.getAndSet(0), n = nanos.getAndSet(0), mx = maxNanos.getAndSet(0);
+            long sc = scanNanos.getAndSet(0), sp = spreadNanos.getAndSet(0), ex = exportNanos.getAndSet(0);
+            long seeds = seedsTotal.getAndSet(0), cells = boxCells.getAndSet(0), tri = threeChannel.getAndSet(0);
+            long rt = onRenderThread.getAndSet(0);
+            Object top = null;
+            long topCount = 0, allCount = 0;
+            for (Map.Entry<Object, LongAdder> e : seedsBySource.entrySet()) {
+                long c = e.getValue().sum();
+                allCount += c;
+                if (c > topCount) {
+                    topCount = c;
+                    top = e.getKey();
+                }
+            }
+            seedsBySource.clear();
             shown = b == 0 ? "Round light: idle"
                     : String.format("Round light: %d builds/s (%d lit), %.2f ms avg, %.2f ms per lit, max %.2f ms",
                     Math.round(b / secs), Math.round(l / secs), n / 1e6 / b, l == 0 ? 0.0 : n / 1e6 / l, mx / 1e6);
+            if (b == 0) {
+                shownSplit = null;
+            } else {
+                String topName = top == null ? "-" : top == MOVING ? "moving light"
+                        : BuiltInRegistries.BLOCK.getKey((Block) top).getPath();
+                shownSplit = String.format(
+                        "Round light split: scan %.3f ms/build; per lit: spread %.2f, colors %.3f ms, %.1f lights, box %dk cells, 3-color %d%%; render thread %d/s; top light: %s (%d%%)",
+                        sc / 1e6 / b,
+                        l == 0 ? 0.0 : sp / 1e6 / l, l == 0 ? 0.0 : ex / 1e6 / l,
+                        l == 0 ? 0.0 : (double) seeds / l, l == 0 ? 0 : Math.round(cells / 1000.0 / l),
+                        l == 0 ? 0 : Math.round(100.0 * tri / l), Math.round(rt / secs),
+                        topName, allCount == 0 ? 0 : Math.round(100.0 * topCount / allCount));
+            }
         }
         return shown;
+    }
+
+    /** Second F3 line (null = nothing to show): the split of {@link #f3Line()}'s window. Call after f3Line. */
+    public static String f3Split() {
+        if (!QuasiumConfig.roundLight && DynamicLights.sources().length == 0) return null;
+        return shownSplit;
     }
 
     private static boolean compute(Work w, SectionPos section, RenderSectionRegion region) {
@@ -201,25 +263,30 @@ public final class RoundLight {
         // 1) find light sources that can reach the target box
         boolean any = false;
         w.seedCount = 0;
-        // block info cache, shared by the seed scan (buried check) and the three channels
-        Arrays.fill(w.flag, UNKNOWN);
-        Arrays.fill(w.state, null);
+        // block info cache, shared by the seed scan (buried check) and the three channels: a new generation
+        // invalidates every cell without clearing the arrays
+        if (++w.gen == Integer.MAX_VALUE) {
+            Arrays.fill(w.flagGen, 0);
+            w.gen = 1;
+        }
+        long scan0 = System.nanoTime();
         if (QuasiumConfig.roundLight) for (int sy = 0; sy < 3; sy++) {
             for (int sz = 0; sz < 3; sz++) {
                 for (int sx = 0; sx < 3; sx++) {
                     SectionCopy copy = copies[sx + sy * 3 + sz * 9];
                     if (copy == null) continue;
                     PalettedContainer<BlockState> states = ((SectionCopyAccessor) copy).quasium$states();
-                    if (states == null || !states.maybeHas(s -> s.getLightEmission() > 0)) continue;
+                    // level 1 lights never leave their own block: identical to vanilla, skip them
+                    if (states == null || !states.maybeHas(s -> s.getLightEmission() > 1)) continue;
                     for (int ly = 0; ly < 16; ly++) {
                         for (int lz = 0; lz < 16; lz++) {
                             for (int lx = 0; lx < 16; lx++) {
                                 BlockState s = states.get(lx, ly, lz);
-                                if (s.getLightEmission() <= 0) continue;
+                                if (s.getLightEmission() <= 1) continue;
                                 int x = (sx << 4) + lx, y = (sy << 4) + ly, z = (sz << 4) + lz;
                                 w.pos.set(w.ox + x, w.oy + y, w.oz + z);
                                 int emission = s.getLightEmission(region, w.pos);
-                                if (emission <= 0) continue;
+                                if (emission <= 1) continue;
                                 // can it reach the target box at all? (straight-line distance)
                                 int ex = Math.max(0, Math.max(tMin - x, x - tMax));
                                 int ey = Math.max(0, Math.max(tMin - y, y - tMax));
@@ -229,6 +296,7 @@ public final class RoundLight {
                                 // adds nothing visible; only its surface seeds (volume -> surface)
                                 if (buried(w, region, x, y, z, s)) continue;
                                 w.addSeed((y * N + z) * N + x, Math.min(MAX, emission * 16), LightColors.of(s.getBlock()));
+                                seedsBySource.computeIfAbsent(s.getBlock(), k -> new LongAdder()).increment();
                                 any = true;
                             }
                         }
@@ -240,16 +308,49 @@ public final class RoundLight {
         for (DynamicLights.Source d : DynamicLights.sources()) {
             int x = d.x() - w.ox, y = d.y() - w.oy, z = d.z() - w.oz;
             if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) continue;
+            if (d.lum() <= 1) continue;
             int ex = Math.max(0, Math.max(tMin - x, x - tMax));
             int ey = Math.max(0, Math.max(tMin - y, y - tMax));
             int ez = Math.max(0, Math.max(tMin - z, z - tMax));
             if (ex * ex + ey * ey + ez * ez >= d.lum() * d.lum()) continue;
             w.addSeed((y * N + z) * N + x, Math.min(MAX, d.lum() * 16), d.color());
+            seedsBySource.computeIfAbsent(MOVING, k -> new LongAdder()).increment();
             any = true;
         }
+        scanNanos.addAndGet(System.nanoTime() - scan0);
         if (!any) return false;
-        // each channel spreads on its own (block info cache was reset before the seed scan)
-        Arrays.fill(w.bright, (short) 0);
+        long spread0 = System.nanoTime();
+        try {
+            return spreadAll(w, region);
+        } finally {
+            spreadNanos.addAndGet(System.nanoTime() - spread0);
+        }
+    }
+
+    /**
+     * Spreads the seeds' light. Light loses at least a full level per block (straight-line distance is never
+     * shorter than the largest axis step), so a seed of level L can only light cells within L blocks on every
+     * axis: everything happens inside that box. Cells outside it are kept at zero by clearing only the box the
+     * previous lit build wrote.
+     */
+    private static boolean spreadAll(Work w, RenderSectionRegion region) {
+        // clear what the previous lit build left behind (value channels + brightness)
+        clearBox(w, w.px0, w.py0, w.pz0, w.px1, w.py1, w.pz1);
+        int x0 = N, y0 = N, z0 = N, x1 = -1, y1 = -1, z1 = -1;
+        for (int i = 0; i < w.seedCount; i++) {
+            int idx = w.seedIdx[i];
+            int sx = idx % N, sz = (idx / N) % N, sy = idx / N2;
+            int r = (w.seedV[i] + 15) / 16;
+            x0 = Math.min(x0, sx - r); x1 = Math.max(x1, sx + r);
+            y0 = Math.min(y0, sy - r); y1 = Math.max(y1, sy + r);
+            z0 = Math.min(z0, sz - r); z1 = Math.max(z1, sz + r);
+        }
+        w.bx0 = Math.max(0, x0); w.by0 = Math.max(0, y0); w.bz0 = Math.max(0, z0);
+        w.bx1 = Math.min(N - 1, x1); w.by1 = Math.min(N - 1, y1); w.bz1 = Math.min(N - 1, z1);
+        w.px0 = w.bx0; w.py0 = w.by0; w.pz0 = w.bz0; w.px1 = w.bx1; w.py1 = w.by1; w.pz1 = w.bz1;
+        seedsTotal.addAndGet(w.seedCount);
+        boxCells.addAndGet((long) (w.bx1 - w.bx0 + 1) * (w.by1 - w.by0 + 1) * (w.bz1 - w.bz0 + 1));
+        int bx0 = w.bx0, bx1 = w.bx1;
         // One light color for every seed (a lava sea, a glowstone blob, one torch type): spread only the strongest
         // channel and scale the other two from it, a third of the work. Light then keeps its hue with distance
         // instead of the weaker channels dying out first (a slightly truer color, not a visible change).
@@ -264,18 +365,42 @@ public final class RoundLight {
                     if (c == dom) continue;
                     short[] cv = w.valueC[c];
                     float k = mono[c] / mono[dom];
-                    for (int i = 0; i < dv.length; i++) cv[i] = (short) Math.round(dv[i] * k);
+                    for (int y = w.by0; y <= w.by1; y++)
+                        for (int z = w.bz0; z <= w.bz1; z++) {
+                            int base = (y * N + z) * N;
+                            for (int i = base + bx0; i <= base + bx1; i++) cv[i] = (short) Math.round(dv[i] * k);
+                        }
                 }
-                System.arraycopy(dv, 0, br, 0, dv.length);
+                for (int y = w.by0; y <= w.by1; y++)
+                    for (int z = w.bz0; z <= w.bz1; z++) {
+                        int base = (y * N + z) * N + bx0;
+                        System.arraycopy(dv, base, br, base, bx1 - bx0 + 1);
+                    }
                 return true;
             }
         }
+        threeChannel.incrementAndGet();
         for (int c = 0; c < 3; c++) {
             spreadChannel(w, region, c);
             short[] val = w.value, br = w.bright;
-            for (int i = 0; i < val.length; i++) if (val[i] > br[i]) br[i] = val[i];
+            for (int y = w.by0; y <= w.by1; y++)
+                for (int z = w.bz0; z <= w.bz1; z++) {
+                    int base = (y * N + z) * N;
+                    for (int i = base + bx0; i <= base + bx1; i++) if (val[i] > br[i]) br[i] = val[i];
+                }
         }
         return true;
+    }
+
+    /** Zeroes the three value channels and the brightness inside a box (empty box: x1 < x0). */
+    private static void clearBox(Work w, int x0, int y0, int z0, int x1, int y1, int z1) {
+        if (x1 < x0 || y1 < y0 || z1 < z0) return;
+        for (int y = y0; y <= y1; y++)
+            for (int z = z0; z <= z1; z++) {
+                int from = (y * N + z) * N + x0, to = (y * N + z) * N + x1 + 1;
+                Arrays.fill(w.bright, from, to, (short) 0);
+                for (int c = 0; c < 3; c++) Arrays.fill(w.valueC[c], from, to, (short) 0);
+            }
     }
 
     /**
@@ -409,8 +534,8 @@ public final class RoundLight {
         w.value = w.valueC[c];
         w.src = w.srcC[c];
         w.srcValue = w.srcValueC[c];
-        Arrays.fill(w.value, (short) 0);
-        Arrays.fill(w.src, -1);
+        // value is already zero outside the lights' box and was cleared inside it (spreadAll); src/srcValue are
+        // only read where value > 0, so they need no clearing
         Arrays.fill(w.bucketSize, 0);
         boolean seeded = false;
         for (int i = 0; i < w.seedCount; i++) {
@@ -441,8 +566,9 @@ public final class RoundLight {
     private static final int[][] FACES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
     private static byte flag(Work w, RenderSectionRegion region, int idx) {
-        byte f = w.flag[idx];
-        if (f != UNKNOWN) return f;
+        if (w.flagGen[idx] == w.gen) return w.flag[idx];
+        w.flagGen[idx] = w.gen;
+        byte f;
         int x = idx % N, z = (idx / N) % N, y = idx / N2;
         w.pos.set(w.ox + x, w.oy + y, w.oz + z);
         BlockState s = region.getBlockState(w.pos);

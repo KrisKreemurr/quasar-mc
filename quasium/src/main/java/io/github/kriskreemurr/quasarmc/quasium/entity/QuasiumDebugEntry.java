@@ -17,6 +17,8 @@ public class QuasiumDebugEntry implements DebugScreenEntry {
         if (!lows.isEmpty()) displayer.addLine(lows);
         displayer.addLine(EntityLod.f3Line());
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.RoundLight.f3Line());
+        String roundSplit = io.github.kriskreemurr.quasarmc.quasium.light.RoundLight.f3Split();
+        if (roundSplit != null) displayer.addLine(roundSplit);
         displayer.addLine(io.github.kriskreemurr.quasarmc.quasium.light.DynamicLights.f3Line());
         String portals = portalLine();
         if (portals != null) displayer.addLine(portals);
